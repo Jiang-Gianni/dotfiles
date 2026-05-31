@@ -1,0 +1,14 @@
+[core]
+	editor = nvim
+[pull]
+    rebase = true
+[diff]
+	tool = nvimdiff
+[difftool "nvimdiff"]
+	cmd = nvim -d \"$LOCAL\" \"$REMOTE\"
+[difftool]
+    prompt = false
+[merge]
+    tool = nvimdiff
+[mergetool "nvimdiff"]
+    cmd = nvim -d -c \"wincmd w\" \"$LOCAL\" \"$MERGED\" \"$REMOTE\"

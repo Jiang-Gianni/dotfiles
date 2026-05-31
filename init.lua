@@ -144,6 +144,8 @@ vim.pack.add({
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/tpope/vim-commentary",
   "https://github.com/mbbill/undotree",
+  "https://github.com/nvim-lua/plenary.nvim",
+  {src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2"},
 })
 
 vim.cmd.packadd('cfilter')
@@ -166,6 +168,22 @@ vim.g.undotree_WindowLayout = 2
 vim.keymap.set("n", "<leader>u", "<cmd>UndotreeToggle<CR>")
 
 -- FZF
+-- default Rg does not support flags -t / -g (I think)
+vim.api.nvim_create_user_command("Rgg", function(opts)
+  vim.fn["fzf#vim#grep"](
+    "rg --line-number --column --color=always --smart-case " .. opts.args,
+    1,
+    vim.fn["fzf#vim#with_preview"]({
+      options = {"--info=inline" },
+      window = { width = 1, height = 1 }
+    }),
+    0
+  )
+  end,
+  {nargs = "*",}
+)
+
+vim.keymap.set("n", "<leader>fw", ":Rgg  <C-r><C-w> ", { silent = false })
 vim.keymap.set("n", "<leader>fr", "<cmd>Rg!<CR>")
 vim.keymap.set("n", "<leader>fR", "<cmd>RG!<CR>")
 vim.keymap.set("n", "<leader>ff", "<cmd>Files!<CR>")
@@ -176,7 +194,6 @@ vim.keymap.set("n", "<leader>fc", "<cmd>Commits!<CR>")
 vim.keymap.set("n", "<leader>fC", "<cmd>Changes!<CR>")
 vim.keymap.set("n", "<leader>fm", "<cmd>Marks!<CR>")
 vim.keymap.set("n", "<leader>fj", "<cmd>Jumps!<CR>")
-vim.keymap.set("n", "<leader>fw", "<cmd>Windows!<CR>")
 vim.keymap.set("n", "<leader>fh", "<cmd>History!<CR>")
 vim.keymap.set("n", "<leader>fH", "<cmd>History:!<CR>")
 vim.keymap.set("n", "<leader>fb", "<cmd>Buffers!<CR>")
@@ -290,7 +307,7 @@ vim.keymap.set("n", "<leader>gq", "<cmd>Gitsigns setqflist all<CR>")
 vim.keymap.set("n", "<leader>gx", "<cmd>Gitsigns toggle_deleted<CR>")
 vim.keymap.set("n", "<leader>gb", "<cmd>Gitsigns blame<CR>")
 
-vim.keymap.set("n", "<leader>gc", "<cmd>!git commit<CR>")
+vim.keymap.set("n", "<leader>gc", ":!git commit -m \"\"<Left>")
 vim.keymap.set("n", "<leader>gC", "<cmd>!git commit --amend --no-edit<CR>")
 vim.keymap.set("n", "<leader>ga", "<cmd>!git add .<CR>")
 vim.keymap.set("n", "<leader>gp", "<cmd>!git push -u origin HEAD<CR>")
@@ -299,15 +316,15 @@ vim.keymap.set("n", "<leader>gf", "<cmd>!git push -u origin HEAD --force<CR>")
 vim.keymap.set("n", "<leader>go", open_github_pr)
 vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
 
--- Marks
-vim.keymap.set('n', '<leader>tN', 'mN')
-vim.keymap.set('n', '<leader>tn', '`N')
-vim.keymap.set('n', '<leader>tE', 'mE')
-vim.keymap.set('n', '<leader>te', '`E')
-vim.keymap.set('n', '<leader>tI', 'mI')
-vim.keymap.set('n', '<leader>ti', '`I')
-vim.keymap.set('n', '<leader>tO', 'mO')
-vim.keymap.set('n', '<leader>to', '`O')
+-- Harpon
+local harpoon = require("harpoon")
+harpoon:setup()
+vim.keymap.set("n", "<leader>tt", function() harpoon:list():add() end)
+vim.keymap.set("n", "<leader>tl", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
+vim.keymap.set("n", "<leader>tn", function() harpoon:list():select(1) end)
+vim.keymap.set("n", "<leader>te", function() harpoon:list():select(2) end)
+vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
+vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 
 -- Leap
 vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap)')
@@ -348,6 +365,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
 vim.lsp.enable({'gopls'})
 vim.lsp.enable({'dartls'})
 
+vim.keymap.set("i", "qq", "<C-x><C-o>", { noremap = true, silent = true })
 vim.keymap.set('n', 'grd', vim.diagnostic.setqflist)
 vim.keymap.set('n', '<leader>e', function()
     vim.cmd("normal! mo")
@@ -386,3 +404,80 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+-- https://gist.github.com/smnatale/692ac4f256d5f19fbcbb78fe32c87604
+-- restore cursor to file position in previous editing session
+vim.api.nvim_create_autocmd("BufReadPost", {
+	callback = function(args)
+		local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
+		local line_count = vim.api.nvim_buf_line_count(args.buf)
+		if mark[1] > 0 and mark[1] <= line_count then
+			vim.api.nvim_win_set_cursor(0, mark)
+			-- defer centering slightly so it's applied after render
+			vim.schedule(function()
+				vim.cmd("normal! zz")
+			end)
+		end
+	end,
+})
+
+-- open help in vertical split
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "help",
+	command = "wincmd L",
+})
+
+-- auto resize splits when the terminal's window is resized
+vim.api.nvim_create_autocmd("VimResized", {
+	command = "wincmd =",
+})
+
+-- no auto continue comments on new line
+vim.api.nvim_create_autocmd("FileType", {
+	group = vim.api.nvim_create_augroup("no_auto_comment", {}),
+	callback = function()
+		vim.opt_local.formatoptions:remove({ "c", "r", "o" })
+	end,
+})
+
+-- ide like highlight when stopping cursor
+vim.api.nvim_create_autocmd("CursorMoved", {
+	group = vim.api.nvim_create_augroup("LspReferenceHighlight", { clear = true }),
+	desc = "Highlight references under cursor",
+	callback = function()
+		-- Only run if the cursor is not in insert mode
+		if vim.fn.mode() ~= "i" then
+			local clients = vim.lsp.get_clients({ bufnr = 0 })
+			local supports_highlight = false
+			for _, client in ipairs(clients) do
+				if client.server_capabilities.documentHighlightProvider then
+					supports_highlight = true
+					break -- Found a supporting client, no need to check others
+				end
+			end
+
+			-- 3. Proceed only if an LSP is active AND supports the feature
+			if supports_highlight then
+				vim.lsp.buf.clear_references()
+				vim.lsp.buf.document_highlight()
+			end
+		end
+	end,
+})
+
+-- ide like highlight when stopping cursor
+vim.api.nvim_create_autocmd("InsertEnter", {
+	group = "LspReferenceHighlight",
+	desc = "Clear highlights when entering insert mode",
+	callback = function()
+		vim.lsp.buf.clear_references()
+	end,
+})
+
+-- SNIPPETS in insert mode
+vim.keymap.set("i", "frnn", function()
+   local snippet = [[if err != nil {
+        return fmt.Errorf(": %w", err)
+    }]]
+  vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
+  vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
+end)
