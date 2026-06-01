@@ -81,7 +81,7 @@ _G.git_branch = function()
   if not branch or branch == "" then
     return ""
   end
-  return " " .. branch
+  return branch
 end
 
 function _G.StatusFilename()
@@ -90,20 +90,35 @@ function _G.StatusFilename()
   return vim.fn.fnamemodify(name, ":t")
 end
 
+function _G.first_error_location()
+  local diags = vim.diagnostic.get(0, {
+    severity = vim.diagnostic.severity.ERROR,
+  })
+  if #diags == 0 then
+    return ""
+  end
+  local d = diags[1]
+  -- line is 0-based, so add 1
+  return "E"..string.format(":%d", d.lnum + 1)
+end
+
 vim.opt.statusline = table.concat({
+  " %{mode()} ",
+"%#DiagnosticError#%{v:lua.first_error_location()}%*",
   "%#StatusLine#",
-  "%#PmenuSel#%{v:lua.StatusFilename()}",
+    "%=",
+  "%#PmenuSel#%f%m",
   "%m",
   "%#StatusLine#",
   " %{v:lua.git_branch()} ",
   "[%{get(b:,'gitsigns_status','')}]",
   "%=",
-  "%{mode()} ",
   "%y ",
   "%{&fileencoding?&fileencoding:&encoding} ",
   "%#StatusLine#",
   "(%l,%c) %{line('$')} %P",
 })
+
 
 vim.keymap.set("i", "ww", "<Esc>:w<CR>")
 vim.keymap.set("n", "ww", ":w<CR>")
@@ -140,6 +155,7 @@ vim.pack.add({
   "https://github.com/junegunn/fzf",
   "https://github.com/junegunn/fzf.vim",
   "https://github.com/lewis6991/gitsigns.nvim",
+  "https://github.com/tpope/vim-fugitive",
   "https://github.com/romus204/tree-sitter-manager.nvim",
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
@@ -193,7 +209,7 @@ vim.api.nvim_create_user_command("Rgg", function(opts)
 
 vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
   vim.fn["fzf#vim#grep"](
-    "git jump --stdout diff $(git rev-parse --abbrev-ref origin/HEAD)" .. opts.args,
+    "git jump --stdout diff $(git merge-base HEAD master)" .. opts.args,
     1,
     vim.fn["fzf#vim#with_preview"]({
       options = {"--info=inline" },
@@ -370,8 +386,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
         vim.o.signcolumn = 'yes:1'
         local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
         if client:supports_method('textDocument/completion') then
-            vim.o.complete = 'o,.,w,b,u'
-            vim.o.completeopt = 'menu,menuone,popup,noinsert'
+            vim.o.complete = 'o'
+            vim.o.completeopt = 'menu,menuone,preview,noselect'
             vim.lsp.completion.enable(true, client.id, args.buf)
         end
 
