@@ -136,6 +136,7 @@ vim.keymap.set("n", "<leader>as", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left>
 
 vim.pack.add({
   "https://github.com/neovim/nvim-lspconfig",
+  "https://github.com/stevearc/oil.nvim",
   "https://github.com/junegunn/fzf",
   "https://github.com/junegunn/fzf.vim",
   "https://github.com/lewis6991/gitsigns.nvim",
@@ -154,6 +155,13 @@ vim.cmd.packadd('nvim.difftool')
 
 require("tokyonight").setup()
 vim.cmd.colorscheme("tokyonight-night")
+
+require("oil").setup({
+    view_options = {
+        show_hidden = true,
+    }
+})
+vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
 
 -- UndoTree
 local undodir = vim.fn.expand("~/.undodir")
@@ -183,7 +191,23 @@ vim.api.nvim_create_user_command("Rgg", function(opts)
   {nargs = "*",}
 )
 
+vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
+  vim.fn["fzf#vim#grep"](
+    "git jump --stdout diff $(git rev-parse --abbrev-ref origin/HEAD)" .. opts.args,
+    1,
+    vim.fn["fzf#vim#with_preview"]({
+      options = {"--info=inline" },
+      window = { width = 1, height = 1 }
+    }),
+    0
+  )
+  end,
+  {nargs = "*",}
+)
+
+
 vim.keymap.set("n", "<leader>fw", ":Rgg  <C-r><C-w> ", { silent = false })
+vim.keymap.set("n", "<leader>fj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>fr", "<cmd>Rg!<CR>")
 vim.keymap.set("n", "<leader>fR", "<cmd>RG!<CR>")
 vim.keymap.set("n", "<leader>ff", "<cmd>Files!<CR>")
@@ -193,7 +217,6 @@ vim.keymap.set("n", "<leader>fl", "<cmd>Lines!<CR>")
 vim.keymap.set("n", "<leader>fc", "<cmd>Commits!<CR>")
 vim.keymap.set("n", "<leader>fC", "<cmd>Changes!<CR>")
 vim.keymap.set("n", "<leader>fm", "<cmd>Marks!<CR>")
-vim.keymap.set("n", "<leader>fj", "<cmd>Jumps!<CR>")
 vim.keymap.set("n", "<leader>fh", "<cmd>History!<CR>")
 vim.keymap.set("n", "<leader>fH", "<cmd>History:!<CR>")
 vim.keymap.set("n", "<leader>fb", "<cmd>Buffers!<CR>")
