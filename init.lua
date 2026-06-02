@@ -371,6 +371,37 @@ vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 -- Leap
 vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap)')
 vim.keymap.set('n',               'S', '<Plug>(leap-from-window)')
+vim.keymap.set({'n', 'x', 'o'}, 'gs', function ()
+  require('leap.remote').action()
+end)
+
+-- Create remote versions of all a/i text objects by inserting `r`
+-- into the middle (`iw` becomes `irw`, etc.).
+-- A trick to avoid having to create separate hardcoded mappings for
+-- each text object: when entering `ar`/`ir`, consume the next
+-- character, and create the input from that character concatenated to
+-- `a`/`i`.
+-- Example to swap 2 words: diwgs{leap}viwpP.
+do
+  local remote_text_object = function (prefix)
+     local ok, ch = pcall(vim.fn.getcharstr)  -- pcall for handling <C-c>
+     if not ok or ch == vim.keycode('<esc>') then return end
+     require('leap.remote').action { input = prefix .. ch }
+  end
+  vim.keymap.set({'x', 'o'}, 'ar', function () remote_text_object('a') end)
+  vim.keymap.set({'x', 'o'}, 'ir', function () remote_text_object('i') end)
+end
+
+-- Example: y3aa{leap}
+vim.keymap.set({'x', 'o'}, 'aa', function ()
+  -- Force linewise selection.
+  local V = vim.fn.mode(true):match('V') and '' or 'V'
+  -- In any case, do some movement, to trigger operations in O-p mode.
+  local input = vim.v.count > 1 and (vim.v.count - 1 .. 'j') or 'hl'
+  -- With `count=false` you can skip feeding count to the command
+  -- automatically (we need -1 here, see above).
+  require('leap.remote').action { input = V .. input, count = false }
+end)
 local leap = require("leap")
 leap.opts.safe_labels = {}
 leap.opts.labels = "setnriaofuplwyqjbmghdzxc"
@@ -401,6 +432,27 @@ vim.api.nvim_create_autocmd('LspAttach', {
       end,
     })
     end
+})
+
+vim.api.nvim_create_autocmd("BufWritePre", {
+  pattern = "*.go",
+  callback = function()
+    local params = vim.lsp.util.make_range_params()
+    params.context = { only = { "source.organizeImports" } }
+
+    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, 1000)
+
+    for _, res in pairs(result or {}) do
+      for _, action in pairs(res.result or {}) do
+        if action.edit then
+          vim.lsp.util.apply_workspace_edit(action.edit, "utf-16")
+        elseif action.command then
+          vim.lsp.buf.execute_command(action.command)
+        end
+      end
+    end
+
+  end,
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
@@ -463,11 +515,14 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 })
 
 -- open help in vertical split
-vim.api.nvim_create_autocmd("FileType", {
-	pattern = "help",
-	command = "wincmd L",
+vim.api.nvim_create_autocmd("BufWinEnter", {
+  pattern = "*.txt", -- help files are treated as text buffers
+  callback = function(args)
+    if vim.bo[args.buf].filetype == "help" then
+      vim.cmd("wincmd L")
+    end
+  end,
 })
-
 -- auto resize splits when the terminal's window is resized
 vim.api.nvim_create_autocmd("VimResized", {
 	command = "wincmd =",
@@ -516,10 +571,17 @@ vim.api.nvim_create_autocmd("InsertEnter", {
 })
 
 -- SNIPPETS in insert mode
-vim.keymap.set("i", "frnn", function()
-   local snippet = [[if err != nil {
-        return fmt.Errorf(": %w", err)
-    }]]
-  vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
-  vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
-end)
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "go",
+  callback = function()
+      
+      vim.keymap.set("i", "frnn", function()
+          local snippet = [[if err != nil {
+              return fmt.Errorf(": %w", err)
+          }]]
+          vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
+          vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
+      end, {buffer = true})
+
+  end,
+})
