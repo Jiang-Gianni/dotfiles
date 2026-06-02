@@ -119,7 +119,10 @@ vim.opt.statusline = table.concat({
   "(%l,%c) %{line('$')} %P",
 })
 
-
+vim.keymap.set("n", "{", "{zz")
+vim.keymap.set("n", "}", "}zz")
+vim.keymap.set("n", "<PageUp>", "<PageUp>zz")
+vim.keymap.set("n", "<PageDown>", "<PageDown>zz")
 vim.keymap.set("i", "ww", "<Esc>:w<CR>")
 vim.keymap.set("n", "ww", ":w<CR>")
 vim.keymap.set("x", "<leader>p", '"_dP')
