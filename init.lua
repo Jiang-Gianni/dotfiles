@@ -64,10 +64,6 @@ vim.opt.iskeyword:append("-")
 
 vim.opt.updatetime = 100
 
-vim.g.netrw_banner = 0
-vim.g.netrw_altv = 1
-vim.g.netrw_liststyle = 3
-
 vim.opt.foldlevel = 999
 vim.opt.foldmethod = 'expr'
 vim.opt.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
@@ -158,7 +154,6 @@ vim.pack.add({
   "https://github.com/junegunn/fzf",
   "https://github.com/junegunn/fzf.vim",
   "https://github.com/lewis6991/gitsigns.nvim",
-  "https://github.com/tpope/vim-fugitive",
   "https://github.com/romus204/tree-sitter-manager.nvim",
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
@@ -224,16 +219,101 @@ vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
   {nargs = "*",}
 )
 
+vim.api.nvim_create_user_command("Directories", function(opts)
+  vim.fn["fzf#vim#grep"](
+    'find . -type d ! -path "./.git/*" ! -path "*node_modules*" ' .. opts.args,
+    1,
+    vim.fn["fzf#vim#with_preview"]({
+        sink = function(selected)
+            if selected and selected ~= "" then
+                -- normalize path (remove leading ./)
+                local dir = selected:gsub("^%./", "")
+                vim.cmd("Oil " .. vim.fn.fnameescape(dir))
+            end
+        end,
+      options = {"--info=inline" },
+      window = { width = 1, height = 1 }
+    }),
+    0
+  )
+  end,
+  {nargs = "*",}
+)
+
+-- https://nrk.neocities.org/articles/vim-gitlog
+vim.api.nvim_create_user_command("GitCommits", function(opts)
+  vim.fn["fzf#vim#grep"](
+    "git --no-pager log --oneline --color=always ${@:--n 128} --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset'",
+    1,
+    vim.fn["fzf#wrap"]({
+        sink = function(selected)
+            vim.cmd("tabnew")
+            local hash = string.match(selected, "^[^ ]+")
+            vim.cmd("read !git --no-pager show " .. hash)
+            vim.cmd("normal! ggdd")
+            vim.bo.filetype = "git"
+            -- scratch buffer settings
+            vim.bo.buftype = "nofile"
+            vim.bo.bufhidden = "wipe"
+            vim.bo.swapfile = false
+            vim.bo.modified = false
+            vim.bo.modifiable = false
+        end,
+      options = {
+          "--info=inline",
+          '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
+      },
+      window = { width = 1, height = 1 }
+    }),
+    0
+  )
+  end,
+  {nargs = "*",}
+)
+
+vim.api.nvim_create_user_command("GitFileCommits", function(opts)
+    local file = vim.fn.expand("%")
+    print(file)
+    vim.fn["fzf#vim#grep"](
+        "git --no-pager log --oneline --color=always ${@:--n 128} --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "..file,
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = function(selected)
+                vim.cmd("tabnew")
+                local hash = string.match(selected, "^[^ ]+")
+                vim.cmd("read !git --no-pager show " .. hash)
+                vim.cmd("normal! ggdd")
+                vim.bo.filetype = "git"
+                -- scratch buffer settings
+                vim.bo.buftype = "nofile"
+                vim.bo.bufhidden = "wipe"
+                vim.bo.swapfile = false
+                vim.bo.modified = false
+                vim.bo.modifiable = false
+            end,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end,
+{nargs = "*",}
+)
+
 
 vim.keymap.set("n", "<leader>fw", ":Rgg  <C-r><C-w> ", { silent = false })
 vim.keymap.set("n", "<leader>fj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>fr", "<cmd>Rg!<CR>")
 vim.keymap.set("n", "<leader>fR", "<cmd>RG!<CR>")
+vim.keymap.set("n", "<leader>fd", "<cmd>Directories<CR>")
 vim.keymap.set("n", "<leader>ff", "<cmd>Files!<CR>")
 vim.keymap.set("n", "<leader>fg", "<cmd>GFiles!?<CR>")
-vim.keymap.set("n", "<leader>fG", "<cmd>BCommits!<CR>")
+vim.keymap.set("n", "<leader>fG", "<cmd>GitFileCommits<CR>")
 vim.keymap.set("n", "<leader>fl", "<cmd>Lines!<CR>")
-vim.keymap.set("n", "<leader>fc", "<cmd>Commits!<CR>")
+vim.keymap.set("n", "<leader>fc", "<cmd>GitCommits<CR>")
 vim.keymap.set("n", "<leader>fC", "<cmd>Changes!<CR>")
 vim.keymap.set("n", "<leader>fm", "<cmd>Marks!<CR>")
 vim.keymap.set("n", "<leader>fh", "<cmd>History!<CR>")
@@ -369,42 +449,18 @@ vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
 vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 
 -- Leap
+vim.api.nvim_set_hl(0, "LeapLabel", {fg = "#7fffd4", bold = true})
 vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap)')
 vim.keymap.set('n',               'S', '<Plug>(leap-from-window)')
-vim.keymap.set({'n', 'x', 'o'}, 'gs', function ()
+vim.keymap.set({'n'}, 'l', function ()
   require('leap.remote').action()
 end)
-
--- Create remote versions of all a/i text objects by inserting `r`
--- into the middle (`iw` becomes `irw`, etc.).
--- A trick to avoid having to create separate hardcoded mappings for
--- each text object: when entering `ar`/`ir`, consume the next
--- character, and create the input from that character concatenated to
--- `a`/`i`.
--- Example to swap 2 words: diwgs{leap}viwpP.
-do
-  local remote_text_object = function (prefix)
-     local ok, ch = pcall(vim.fn.getcharstr)  -- pcall for handling <C-c>
-     if not ok or ch == vim.keycode('<esc>') then return end
-     require('leap.remote').action { input = prefix .. ch }
-  end
-  vim.keymap.set({'x', 'o'}, 'ar', function () remote_text_object('a') end)
-  vim.keymap.set({'x', 'o'}, 'ir', function () remote_text_object('i') end)
-end
-
--- Example: y3aa{leap}
-vim.keymap.set({'x', 'o'}, 'aa', function ()
-  -- Force linewise selection.
-  local V = vim.fn.mode(true):match('V') and '' or 'V'
-  -- In any case, do some movement, to trigger operations in O-p mode.
-  local input = vim.v.count > 1 and (vim.v.count - 1 .. 'j') or 'hl'
-  -- With `count=false` you can skip feeding count to the command
-  -- automatically (we need -1 here, see above).
-  require('leap.remote').action { input = V .. input, count = false }
+vim.keymap.set({'o'}, 'r', function()
+  require('leap.treesitter').select {}
 end)
 local leap = require("leap")
 leap.opts.safe_labels = {}
-leap.opts.labels = "setnriaofuplwyqjbmghdzxc"
+leap.opts.labels = "setnriaofuplwyqgvmcdxhzbjk"
 leap.opts.max_phase_one_targets = 0
 leap.opts.special_keys.next_group = "<space>"
 
@@ -421,7 +477,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
         local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
         if client:supports_method('textDocument/completion') then
             vim.o.complete = 'o'
-            vim.o.completeopt = 'menu,menuone,preview,noselect'
+            vim.o.completeopt = 'menu,menuone,noselect'
             vim.lsp.completion.enable(true, client.id, args.buf)
         end
 
