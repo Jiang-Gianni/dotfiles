@@ -242,55 +242,56 @@ vim.api.nvim_create_user_command("Directories", function(opts)
 
 -- https://nrk.neocities.org/articles/vim-gitlog
 vim.api.nvim_create_user_command("GitCommits", function(opts)
-  vim.fn["fzf#vim#grep"](
-    "git --no-pager log --oneline --color=always ${@:--n 128} --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset'",
-    1,
-    vim.fn["fzf#wrap"]({
-        sink = function(selected)
-            vim.cmd("tabnew")
-            local hash = string.match(selected, "^[^ ]+")
-            vim.cmd("read !git --no-pager show " .. hash)
-            vim.cmd("normal! ggdd")
-            vim.bo.filetype = "git"
-            -- scratch buffer settings
-            vim.bo.buftype = "nofile"
-            vim.bo.bufhidden = "wipe"
-            vim.bo.swapfile = false
-            vim.bo.modified = false
-            vim.bo.modifiable = false
-        end,
-      options = {
-          "--info=inline",
-          '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
-      },
-      window = { width = 1, height = 1 }
-    }),
-    0
-  )
-  end,
-  {nargs = "*",}
+    vim.fn["fzf#vim#grep"](
+        "git --no-pager log --oneline --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset'",
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = git_show,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end,
+{nargs = "*",}
 )
 
 vim.api.nvim_create_user_command("GitFileCommits", function(opts)
     local file = vim.fn.expand("%")
-    print(file)
     vim.fn["fzf#vim#grep"](
-        "git --no-pager log --oneline --color=always ${@:--n 128} --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "..file,
+        "git --no-pager log --oneline --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "..file,
         1,
         vim.fn["fzf#wrap"]({
-            sink = function(selected)
-                vim.cmd("tabnew")
-                local hash = string.match(selected, "^[^ ]+")
-                vim.cmd("read !git --no-pager show " .. hash)
-                vim.cmd("normal! ggdd")
-                vim.bo.filetype = "git"
-                -- scratch buffer settings
-                vim.bo.buftype = "nofile"
-                vim.bo.bufhidden = "wipe"
-                vim.bo.swapfile = false
-                vim.bo.modified = false
-                vim.bo.modifiable = false
-            end,
+            sink = git_show,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end,
+{nargs = "*",}
+)
+
+-- ":GitLineCommits N,M" to git log on current file from (current line - N) to (current line + M)
+vim.api.nvim_create_user_command("GitLineCommits", function(opts)
+    local file = vim.fn.expand("%")
+    local line = vim.fn.line(".")
+
+    local up = tonumber(opts.fargs[1]) or 0
+    local down = tonumber(opts.fargs[2]) or 0
+    local start_line = math.max(1, line - up)
+    local end_line = line + down
+    vim.fn["fzf#vim#grep"](
+        "git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' -L "..start_line..","..end_line..":"..file,
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = git_show,
             options = {
                 "--info=inline",
                 '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
@@ -304,6 +305,22 @@ end,
 )
 
 
+function git_show(selected)
+    vim.cmd("tabnew")
+    local hash = string.match(selected, "^[^ ]+")
+    vim.cmd("read !git --no-pager show --unified=5 --stat " .. hash)
+    vim.cmd("normal! ggdd")
+    vim.bo.filetype = "git"
+    vim.bo.buftype = "nofile"
+    vim.bo.bufhidden = "wipe"
+    vim.bo.swapfile = false
+    vim.bo.modified = false
+    vim.bo.modifiable = false
+end
+
+vim.keymap.set("n", "<leader>fc", "<cmd>GitCommits<CR>")
+vim.keymap.set("n", "<leader>fG", "<cmd>GitFileCommits<CR>")
+vim.keymap.set("n", "<leader>fl", "<cmd>GitLineCommits<CR>")
 vim.keymap.set("n", "<leader>fw", ":Rgg  <C-r><C-w> ", { silent = false })
 vim.keymap.set("n", "<leader>fj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>fr", "<cmd>Rg!<CR>")
@@ -311,9 +328,6 @@ vim.keymap.set("n", "<leader>fR", "<cmd>RG!<CR>")
 vim.keymap.set("n", "<leader>fd", "<cmd>Directories<CR>")
 vim.keymap.set("n", "<leader>ff", "<cmd>Files!<CR>")
 vim.keymap.set("n", "<leader>fg", "<cmd>GFiles!?<CR>")
-vim.keymap.set("n", "<leader>fG", "<cmd>GitFileCommits<CR>")
-vim.keymap.set("n", "<leader>fl", "<cmd>Lines!<CR>")
-vim.keymap.set("n", "<leader>fc", "<cmd>GitCommits<CR>")
 vim.keymap.set("n", "<leader>fC", "<cmd>Changes!<CR>")
 vim.keymap.set("n", "<leader>fm", "<cmd>Marks!<CR>")
 vim.keymap.set("n", "<leader>fh", "<cmd>History!<CR>")
