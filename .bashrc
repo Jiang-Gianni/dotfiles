@@ -14,6 +14,6 @@ gbs(){
 }
 
 gitdiff(){
-    git diff main --name-only | fzf --preview 'git diff main -- {}' | xargs git difftool main
+    git diff main --name-only | fzf --preview 'git diff --word-diff -w  main -- {}' | xargs git difftool main
 }
 

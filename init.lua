@@ -205,20 +205,6 @@ vim.api.nvim_create_user_command("Rgg", function(opts)
   {nargs = "*",}
 )
 
-vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
-  vim.fn["fzf#vim#grep"](
-    "git jump --stdout diff $(git merge-base HEAD master)" .. opts.args,
-    1,
-    vim.fn["fzf#vim#with_preview"]({
-      options = {"--info=inline" },
-      window = { width = 1, height = 1 }
-    }),
-    0
-  )
-  end,
-  {nargs = "*",}
-)
-
 vim.api.nvim_create_user_command("Directories", function(opts)
   vim.fn["fzf#vim#grep"](
     'find . -type d ! -path "./.git/*" ! -path "*node_modules*" ' .. opts.args,
@@ -240,89 +226,7 @@ vim.api.nvim_create_user_command("Directories", function(opts)
   {nargs = "*",}
 )
 
--- https://nrk.neocities.org/articles/vim-gitlog
-vim.api.nvim_create_user_command("GitCommits", function(opts)
-    vim.fn["fzf#vim#grep"](
-        "git --no-pager log --oneline --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset'",
-        1,
-        vim.fn["fzf#wrap"]({
-            sink = git_show,
-            options = {
-                "--info=inline",
-                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
-            },
-            window = { width = 1, height = 1 }
-        }),
-        0
-    )
-end,
-{nargs = "*",}
-)
-
-vim.api.nvim_create_user_command("GitFileCommits", function(opts)
-    local file = vim.fn.expand("%")
-    vim.fn["fzf#vim#grep"](
-        "git --no-pager log --oneline --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "..file,
-        1,
-        vim.fn["fzf#wrap"]({
-            sink = git_show,
-            options = {
-                "--info=inline",
-                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
-            },
-            window = { width = 1, height = 1 }
-        }),
-        0
-    )
-end,
-{nargs = "*",}
-)
-
--- ":GitLineCommits N,M" to git log on current file from (current line - N) to (current line + M)
-vim.api.nvim_create_user_command("GitLineCommits", function(opts)
-    local file = vim.fn.expand("%")
-    local line = vim.fn.line(".")
-
-    local up = tonumber(opts.fargs[1]) or 0
-    local down = tonumber(opts.fargs[2]) or 0
-    local start_line = math.max(1, line - up)
-    local end_line = line + down
-    vim.fn["fzf#vim#grep"](
-        "git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' -L "..start_line..","..end_line..":"..file,
-        1,
-        vim.fn["fzf#wrap"]({
-            sink = git_show,
-            options = {
-                "--info=inline",
-                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show --color=always',
-            },
-            window = { width = 1, height = 1 }
-        }),
-        0
-    )
-end,
-{nargs = "*",}
-)
-
-
-function git_show(selected)
-    vim.cmd("tabnew")
-    local hash = string.match(selected, "^[^ ]+")
-    vim.cmd("read !git --no-pager show --unified=5 --stat " .. hash)
-    vim.cmd("normal! ggdd")
-    vim.bo.filetype = "git"
-    vim.bo.buftype = "nofile"
-    vim.bo.bufhidden = "wipe"
-    vim.bo.swapfile = false
-    vim.bo.modified = false
-    vim.bo.modifiable = false
-end
-
-vim.keymap.set("n", "<leader>fc", "<cmd>GitCommits<CR>")
-vim.keymap.set("n", "<leader>fG", "<cmd>GitFileCommits<CR>")
-vim.keymap.set("n", "<leader>fl", "<cmd>GitLineCommits<CR>")
 vim.keymap.set("n", "<leader>fw", ":Rgg  <C-r><C-w> ", { silent = false })
-vim.keymap.set("n", "<leader>fj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>fr", "<cmd>Rg!<CR>")
 vim.keymap.set("n", "<leader>fR", "<cmd>RG!<CR>")
 vim.keymap.set("n", "<leader>fd", "<cmd>Directories<CR>")
@@ -338,6 +242,109 @@ vim.keymap.set("n", "<leader>fe", "<cmd>Commands!<CR>")
 vim.keymap.set("n", "<leader>ft", "<cmd>Helptags!<CR>")
 
 -- Git
+vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
+  vim.fn["fzf#vim#grep"](
+    "git jump --stdout diff $(git merge-base HEAD main)" .. opts.args,
+    1,
+    vim.fn["fzf#vim#with_preview"]({
+      options = {"--info=inline" },
+      window = { width = 1, height = 1 }
+    }),
+    0
+  )
+  end,
+  {nargs = "*",}
+)
+
+local GIT_LOG = "git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "
+
+function fzf_git_show(git_log_extra)
+    vim.fn["fzf#vim#grep"](
+        GIT_LOG..git_log_extra,
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = function (selected)
+                vim.cmd("tabnew")
+                local hash = string.match(selected, "^[^ ]+")
+                vim.cmd("read !git --no-pager show --unified=5 --stat " .. hash)
+                vim.cmd("normal! ggdd")
+                vim.bo.filetype = "git"
+                vim.bo.buftype = "nofile"
+                vim.bo.bufhidden = "wipe"
+                vim.bo.swapfile = false
+                vim.bo.modified = false
+            end,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show -w --word-diff --color=always',
+                "--prompt=GitShow>",
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end
+
+-- https://nrk.neocities.org/articles/vim-gitlog
+vim.api.nvim_create_user_command("GitCommits", function(opts) fzf_git_show('') end, {nargs = "*"})
+vim.api.nvim_create_user_command("GitFileCommits", function(opts) fzf_git_show(vim.fn.expand("%")) end, {nargs = "*"})
+
+-- ":GitLineCommits N,M" to git log on current file from (current line - N) to (current line + M)
+vim.api.nvim_create_user_command("GitLineCommits", function(opts)
+    local file = vim.fn.expand("%")
+    local line = vim.fn.line(".")
+    local up = tonumber(opts.fargs[1]) or 0
+    local down = tonumber(opts.fargs[2]) or 0
+    local start_line = math.max(1, line - up)
+    local end_line = line + down
+    fzf_git_show(" -L "..start_line..","..end_line..":"..file)
+end, {nargs = "*",})
+
+
+vim.api.nvim_create_user_command("GitSwitch", function(opts)
+  local branch =
+    vim.trim(vim.fn.system("git branch --show-current"))
+    vim.fn["fzf#vim#grep"](
+        [[git branch | grep --invert-match '\*' | cut -c 3- ]],
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = function (selected)
+                vim.cmd("!git switch "..selected)
+            end,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show -w --word-diff --color=always',
+                "--header=* "..branch,
+                "--prompt=GitSwitch>",
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end, {nargs = "*",})
+
+vim.api.nvim_create_user_command("GitBranchDelete", function(opts)
+  local branch =
+    vim.trim(vim.fn.system("git branch --show-current"))
+    vim.fn["fzf#vim#grep"](
+        [[git branch | grep --invert-match '\*' | cut -c 3- ]],
+        1,
+        vim.fn["fzf#wrap"]({
+            sink = function (selected)
+                vim.cmd("!git branch -D "..selected)
+            end,
+            options = {
+                "--info=inline",
+                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show -w --word-diff --color=always',
+                "--header=* "..branch,
+                "--prompt=GitBranchDelete>",
+            },
+            window = { width = 1, height = 1 }
+        }),
+        0
+    )
+end, {nargs = "*",})
+
 local function open_github_pr()
   local remote =
     vim.trim(vim.fn.system("git remote get-url origin"))
@@ -369,85 +376,28 @@ local function open_github_pr()
   print(pr_url)
 end
 
-local git_commit =
-  vim.api.nvim_create_augroup(
-    "git_commit",
-    { clear = true }
-  )
+require('gitsigns').setup{}
 
-vim.api.nvim_create_autocmd(
-  "FileType",
-  {
-    group = git_commit,
-    pattern = "gitcommit",
-    command = "startinsert",
-  }
-)
-
-require('gitsigns').setup{
- signs = {
-    add          = { text = '┃' },
-    change       = { text = '┃' },
-    delete       = { text = '_' },
-    topdelete    = { text = '‾' },
-    changedelete = { text = '~' },
-    untracked    = { text = '┆' },
-  },
-  signs_staged = {
-    add          = { text = '┃' },
-    change       = { text = '┃' },
-    delete       = { text = '_' },
-    topdelete    = { text = '‾' },
-    changedelete = { text = '~' },
-    untracked    = { text = '┆' },
-  },
-  signs_staged_enable = true,
-  signcolumn = true,  -- Toggle with `:Gitsigns toggle_signs`
-  numhl      = true, -- Toggle with `:Gitsigns toggle_numhl`
-  linehl     = false, -- Toggle with `:Gitsigns toggle_linehl`
-  word_diff  = false, -- Toggle with `:Gitsigns toggle_word_diff`
-  watch_gitdir = {
-    follow_files = true
-  },
-  auto_attach = true,
-  attach_to_untracked = false,
-  current_line_blame = false, -- Toggle with `:Gitsigns toggle_current_line_blame`
-  current_line_blame_opts = {
-    virt_text = true,
-    virt_text_pos = 'eol', -- 'eol' | 'overlay' | 'right_align'
-    delay = 1000,
-    ignore_whitespace = false,
-    virt_text_priority = 100,
-    use_focus = true,
-  },
-  current_line_blame_formatter = '<author>, <author_time:%R> - <summary>',
-  blame_formatter = nil, -- Use default
-  sign_priority = 6,
-  update_debounce = 100,
-  status_formatter = nil, -- Use default
-  max_file_length = 40000, -- Disable if file is longer than this (in lines)
-  preview_config = {
-    -- Options passed to nvim_open_win
-    style = 'minimal',
-    relative = 'cursor',
-    row = 0,
-    col = 1
-  },
-}
-
-vim.keymap.set("n", "<leader>ge", "<cmd>Gitsigns nav_hunk next<CR>")
-vim.keymap.set("n", "<leader>gs", "<cmd>Gitsigns nav_hunk prev<CR>")
-vim.keymap.set("n", "<leader>gh", "<cmd>Gitsigns preview_hunk_inline<CR>")
-vim.keymap.set("n", "<leader>gd", "<cmd>Gitsigns diffthis<CR>")
-vim.keymap.set("n", "<leader>gq", "<cmd>Gitsigns setqflist all<CR>")
-vim.keymap.set("n", "<leader>gx", "<cmd>Gitsigns toggle_deleted<CR>")
-vim.keymap.set("n", "<leader>gb", "<cmd>Gitsigns blame<CR>")
-
+vim.keymap.set("n", "<leader>gs", ":GitSwitch<CR>")
+vim.keymap.set("n", "<leader>gS", ":!git switch -c ")
+vim.keymap.set("n", "<leader>gD", ":GitBranchDelete<CR>")
+vim.keymap.set("n", "<leader>gr", ":!git rebase main")
+vim.keymap.set("n", "<leader>gR", ":!git restore --source=main %<CR>")
+vim.keymap.set("n", "<leader>gu", ":!git pull")
 vim.keymap.set("n", "<leader>gc", ":!git commit -m \"\"<Left>")
 vim.keymap.set("n", "<leader>gC", "<cmd>!git commit --amend --no-edit<CR>")
 vim.keymap.set("n", "<leader>ga", "<cmd>!git add .<CR>")
 vim.keymap.set("n", "<leader>gp", "<cmd>!git push -u origin HEAD<CR>")
-vim.keymap.set("n", "<leader>gf", "<cmd>!git push -u origin HEAD --force<CR>")
+vim.keymap.set("n", "<leader>gP", "<cmd>!git push -u origin HEAD --force<CR>")
+
+vim.keymap.set("n", "<leader>gj", ":GitJumpDiff<CR>", { silent = false })
+vim.keymap.set("n", "<leader>gl", "<cmd>GitCommits<CR>")
+vim.keymap.set("n", "<leader>gf", "<cmd>GitFileCommits<CR>")
+vim.keymap.set("n", "<leader>gb", "<cmd>GitLineCommits<CR>")
+
+vim.keymap.set("n", "<leader>gh", "<cmd>Gitsigns preview_hunk_inline<CR>")
+vim.keymap.set("n", "<leader>gd", "<cmd>Gitsigns diffthis main<CR>")
+vim.keymap.set("n", "<leader>gx", "<cmd>Gitsigns toggle_deleted<CR>")
 
 vim.keymap.set("n", "<leader>go", open_github_pr)
 vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
@@ -485,6 +435,11 @@ vim.api.nvim_create_autocmd('FileType', {
     callback = function() pcall(vim.treesitter.start) end,
 })
 
+local format_ft = {
+  go = true,
+  typescript = true,
+}
+
 vim.api.nvim_create_autocmd('LspAttach', {
     callback = function(args)
         vim.o.signcolumn = 'yes:1'
@@ -495,12 +450,16 @@ vim.api.nvim_create_autocmd('LspAttach', {
             vim.lsp.completion.enable(true, client.id, args.buf)
         end
 
-      vim.api.nvim_create_autocmd("BufWritePre", {
-      buffer = bufnr,
-      callback = function()
-        vim.lsp.buf.format({ async = false })
-      end,
-    })
+        if client.server_capabilities.documentFormattingProvider then
+            vim.api.nvim_create_autocmd("BufWritePre", {
+                buffer = bufnr,
+                callback = function()
+                    if format_ft[vim.bo.filetype] then
+                        vim.lsp.buf.format({ async = false })
+                    end
+                end,
+            })
+        end
     end
 })
 
@@ -526,8 +485,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
-vim.lsp.enable({'gopls'})
-vim.lsp.enable({'dartls'})
+vim.lsp.enable({'gopls', 'dartls', 'ts_ls'})
 
 vim.keymap.set("i", "qq", "<C-x><C-o>", { noremap = true, silent = true })
 vim.keymap.set('n', 'grd', vim.diagnostic.setqflist)
