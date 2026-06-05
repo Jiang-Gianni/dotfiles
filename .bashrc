@@ -4,14 +4,7 @@ if type rg &> /dev/null; then
 fi
 
 alias k=kubectl
-
-gbd(){
-    git branch | grep --invert-match '\*' | cut -c 3- | fzf --multi --preview="git log {} --" | xargs --no-run-if-empty git branch --delete --force
-}
-
-gbs(){
-    git branch | grep --invert-match '\*' | cut -c 3- | fzf --multi --preview="git log {} --" | xargs --no-run-if-empty git switch
-}
+alias n='nvim .'
 
 gitdiff(){
     git diff main --name-only | fzf --preview 'git diff --word-diff -w  main -- {}' | xargs git difftool main

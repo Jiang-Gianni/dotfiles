@@ -17,6 +17,7 @@ vim.opt.signcolumn = "yes"
 
 vim.opt.wrap = true
 vim.opt.linebreak = true
+vim.opt.showbreak = "↪ "
 vim.opt.breakindent = true
 vim.opt.smoothscroll = true
 
@@ -55,6 +56,20 @@ vim.opt.completeopt = {
   "menuone",
   "noselect",
   "preview",
+}
+
+vim.opt.diffopt = {
+  "internal",
+  "filler",
+  "closeoff",
+  "hiddenoff",
+  "algorithm:histogram",
+  "indent-heuristic",
+  "iwhite",
+  "iwhiteeol",
+  "linematch:60",
+  "inline:char",
+  "followwrap",
 }
 
 vim.opt.grepprg = "rg --vimgrep --smart-case --follow"
@@ -103,7 +118,7 @@ vim.opt.statusline = table.concat({
 "%#DiagnosticError#%{v:lua.first_error_location()}%*",
   "%#StatusLine#",
     "%=",
-  "%#PmenuSel#%f%m",
+  "%#PmenuSel#%f",
   "%m",
   "%#StatusLine#",
   " %{v:lua.git_branch()} ",
@@ -313,7 +328,7 @@ vim.api.nvim_create_user_command("GitSwitch", function(opts)
             end,
             options = {
                 "--info=inline",
-                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show -w --word-diff --color=always',
+                '--preview=git log --date=iso --color=always {}',
                 "--header=* "..branch,
                 "--prompt=GitSwitch>",
             },
@@ -335,7 +350,7 @@ vim.api.nvim_create_user_command("GitBranchDelete", function(opts)
             end,
             options = {
                 "--info=inline",
-                '--preview=echo {1} | cut -d" " -f1 | xargs git --no-pager show -w --word-diff --color=always',
+                '--preview=git log --date=iso --color=always {}',
                 "--header=* "..branch,
                 "--prompt=GitBranchDelete>",
             },
