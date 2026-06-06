@@ -24,6 +24,7 @@ vim.opt.smoothscroll = true
 vim.opt.scrolloff = 8
 vim.opt.sidescrolloff = 5
 
+vim.opt.inccommand = "split"
 vim.opt.splitbelow = true
 vim.opt.splitright = true
 
@@ -130,10 +131,11 @@ vim.opt.statusline = table.concat({
   "(%l,%c) %{line('$')} %P",
 })
 
+vim.keymap.set('t', 'ww', [[<C-\><C-n>]])
 vim.keymap.set("n", "{", "{zz")
 vim.keymap.set("n", "}", "}zz")
-vim.keymap.set("n", "<PageUp>", "<PageUp>zz")
-vim.keymap.set("n", "<PageDown>", "<PageDown>zz")
+vim.keymap.set("n", "<PageUp>", "<C-u>zz")
+vim.keymap.set("n", "<PageDown>", "<C-d>zz")
 vim.keymap.set("i", "ww", "<Esc>:w<CR>")
 vim.keymap.set("n", "ww", ":w<CR>")
 vim.keymap.set("x", "<leader>p", '"_dP')
@@ -205,6 +207,29 @@ vim.g.undotree_WindowLayout = 2
 vim.keymap.set("n", "<leader>u", "<cmd>UndotreeToggle<CR>")
 
 -- FZF
+local AQUA =  "#7ffff7"
+vim.api.nvim_set_hl(0, "FzfPointer", {fg =AQUA,  bold = true})
+vim.g.fzf_colors = {["pointer"] = { "fg", "FzfPointer"},}
+
+-- hide statusline
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "fzf",
+  callback = function()
+    vim.o.laststatus = 0
+    vim.o.showmode = false
+    vim.o.ruler = false
+
+    vim.api.nvim_create_autocmd("BufLeave", {
+      buffer = 0,
+      callback = function()
+        vim.o.laststatus = 2
+        vim.o.showmode = true
+        vim.o.ruler = true
+      end,
+    })
+  end,
+})
+
 -- default Rg does not support flags -t / -g (I think)
 vim.api.nvim_create_user_command("Rgg", function(opts)
   vim.fn["fzf#vim#grep"](
@@ -328,7 +353,7 @@ vim.api.nvim_create_user_command("GitSwitch", function(opts)
             end,
             options = {
                 "--info=inline",
-                '--preview=git log --date=iso --color=always {}',
+                '--preview=git log -n 10 --date=iso --color=always {}',
                 "--header=* "..branch,
                 "--prompt=GitSwitch>",
             },
@@ -350,7 +375,7 @@ vim.api.nvim_create_user_command("GitBranchDelete", function(opts)
             end,
             options = {
                 "--info=inline",
-                '--preview=git log --date=iso --color=always {}',
+                '--preview=git log -n 10 --date=iso --color=always {}',
                 "--header=* "..branch,
                 "--prompt=GitBranchDelete>",
             },
@@ -396,14 +421,14 @@ require('gitsigns').setup{}
 vim.keymap.set("n", "<leader>gs", ":GitSwitch<CR>")
 vim.keymap.set("n", "<leader>gS", ":!git switch -c ")
 vim.keymap.set("n", "<leader>gD", ":GitBranchDelete<CR>")
-vim.keymap.set("n", "<leader>gr", ":!git rebase main")
+vim.keymap.set("n", "<leader>gr", ":!git rebase main --update-refs")
 vim.keymap.set("n", "<leader>gR", ":!git restore --source=main %<CR>")
 vim.keymap.set("n", "<leader>gu", ":!git pull")
 vim.keymap.set("n", "<leader>gc", ":!git commit -m \"\"<Left>")
 vim.keymap.set("n", "<leader>gC", "<cmd>!git commit --amend --no-edit<CR>")
 vim.keymap.set("n", "<leader>ga", "<cmd>!git add .<CR>")
 vim.keymap.set("n", "<leader>gp", "<cmd>!git push -u origin HEAD<CR>")
-vim.keymap.set("n", "<leader>gP", "<cmd>!git push -u origin HEAD --force<CR>")
+vim.keymap.set("n", "<leader>gP", "<cmd>!git push -u origin HEAD --force-with-lease<CR>")
 
 vim.keymap.set("n", "<leader>gj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>gl", "<cmd>GitCommits<CR>")
@@ -428,7 +453,7 @@ vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
 vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 
 -- Leap
-vim.api.nvim_set_hl(0, "LeapLabel", {fg = "#7fffd4", bold = true})
+vim.api.nvim_set_hl(0, "LeapLabel", {fg =AQUA, bold = true})
 vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap)')
 vim.keymap.set('n',               'S', '<Plug>(leap-from-window)')
 vim.keymap.set({'n'}, 'l', function ()
