@@ -5,7 +5,8 @@
 [diff]
 	tool = nvimdiff
 [difftool "nvimdiff"]
-	cmd = nvim -d \"$LOCAL\" \"$REMOTE\"
+    ; git difftool -d origin/HEAD
+	cmd = nvim -c \"DiffTool $LOCAL $REMOTE\"
 [difftool]
     prompt = false
 [merge]

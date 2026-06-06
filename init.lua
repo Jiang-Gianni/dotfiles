@@ -84,6 +84,8 @@ vim.opt.foldlevel = 999
 vim.opt.foldmethod = 'expr'
 vim.opt.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
 
+require('vim._core.ui2').enable()
+
 vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function() vim.hl.on_yank() end,
 })
@@ -183,9 +185,13 @@ vim.pack.add({
 vim.cmd.packadd('cfilter')
 -- vim.cmd.packadd('nvim.undotree')
 vim.cmd.packadd('nvim.difftool')
+vim.cmd.packadd('nvim.tohtml')
 
 require("tokyonight").setup()
 vim.cmd.colorscheme("tokyonight-night")
+
+-- remove folded highlight
+vim.api.nvim_set_hl(0, "Folded", { fg = "#b0b0b0", bg = "NONE", bold=true })
 
 require("oil").setup({
     view_options = {
@@ -284,7 +290,7 @@ vim.keymap.set("n", "<leader>ft", "<cmd>Helptags!<CR>")
 -- Git
 vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
   vim.fn["fzf#vim#grep"](
-    "git jump --stdout diff $(git merge-base HEAD main)" .. opts.args,
+    "git jump --stdout diff $(git merge-base HEAD origin/HEAD) " .. opts.args,
     1,
     vim.fn["fzf#vim#with_preview"]({
       options = {"--info=inline" },
@@ -299,8 +305,10 @@ vim.api.nvim_create_user_command("GitJumpDiff", function(opts)
 local GIT_LOG = "git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' "
 
 function fzf_git_show(git_log_extra)
+    local cmd = GIT_LOG..git_log_extra
+    print(cmd)
     vim.fn["fzf#vim#grep"](
-        GIT_LOG..git_log_extra,
+        cmd,
         1,
         vim.fn["fzf#wrap"]({
             sink = function (selected)
@@ -327,7 +335,6 @@ end
 
 -- https://nrk.neocities.org/articles/vim-gitlog
 vim.api.nvim_create_user_command("GitCommits", function(opts) fzf_git_show('') end, {nargs = "*"})
-vim.api.nvim_create_user_command("GitFileCommits", function(opts) fzf_git_show(vim.fn.expand("%")) end, {nargs = "*"})
 
 -- ":GitLineCommits N,M" to git log on current file from (current line - N) to (current line + M)
 vim.api.nvim_create_user_command("GitLineCommits", function(opts)
@@ -421,9 +428,9 @@ require('gitsigns').setup{}
 vim.keymap.set("n", "<leader>gs", ":GitSwitch<CR>")
 vim.keymap.set("n", "<leader>gS", ":!git switch -c ")
 vim.keymap.set("n", "<leader>gD", ":GitBranchDelete<CR>")
-vim.keymap.set("n", "<leader>gr", ":!git rebase main --update-refs")
-vim.keymap.set("n", "<leader>gR", ":!git restore --source=main %<CR>")
-vim.keymap.set("n", "<leader>gu", ":!git pull")
+vim.keymap.set("n", "<leader>gr", ":!git rebase origin/HEAD --update-refs")
+vim.keymap.set("n", "<leader>gR", ":!git restore --source=origin/HEAD %<CR>")
+vim.keymap.set("n", "<leader>gf", ":!git fetch --prune origin<CR>")
 vim.keymap.set("n", "<leader>gc", ":!git commit -m \"\"<Left>")
 vim.keymap.set("n", "<leader>gC", "<cmd>!git commit --amend --no-edit<CR>")
 vim.keymap.set("n", "<leader>ga", "<cmd>!git add .<CR>")
@@ -432,25 +439,14 @@ vim.keymap.set("n", "<leader>gP", "<cmd>!git push -u origin HEAD --force-with-le
 
 vim.keymap.set("n", "<leader>gj", ":GitJumpDiff<CR>", { silent = false })
 vim.keymap.set("n", "<leader>gl", "<cmd>GitCommits<CR>")
-vim.keymap.set("n", "<leader>gf", "<cmd>GitFileCommits<CR>")
 vim.keymap.set("n", "<leader>gb", "<cmd>GitLineCommits<CR>")
 
 vim.keymap.set("n", "<leader>gh", "<cmd>Gitsigns preview_hunk_inline<CR>")
-vim.keymap.set("n", "<leader>gd", "<cmd>Gitsigns diffthis main<CR>")
+vim.keymap.set("n", "<leader>gd", "<cmd>Gitsigns diffthis origin/HEAD<CR>")
 vim.keymap.set("n", "<leader>gx", "<cmd>Gitsigns toggle_deleted<CR>")
 
 vim.keymap.set("n", "<leader>go", open_github_pr)
 vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
-
--- Harpon
-local harpoon = require("harpoon")
-harpoon:setup()
-vim.keymap.set("n", "<leader>tt", function() harpoon:list():add() end)
-vim.keymap.set("n", "<leader>tl", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
-vim.keymap.set("n", "<leader>tn", function() harpoon:list():select(1) end)
-vim.keymap.set("n", "<leader>te", function() harpoon:list():select(2) end)
-vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
-vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 
 -- Leap
 vim.api.nvim_set_hl(0, "LeapLabel", {fg =AQUA, bold = true})
@@ -529,41 +525,34 @@ vim.lsp.enable({'gopls', 'dartls', 'ts_ls'})
 
 vim.keymap.set("i", "qq", "<C-x><C-o>", { noremap = true, silent = true })
 vim.keymap.set('n', 'grd', vim.diagnostic.setqflist)
-vim.keymap.set('n', '<leader>e', function()
-    vim.cmd("normal! mo")
-    vim.cmd("copen")
-end)
+vim.keymap.set('n', '<leader>e', ':copen<CR>')
 
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = "qf",
-  callback = function(args)
-    local opts = { buffer = args.buf, silent = true }
+    pattern = "qf",
+    callback = function(args)
+        local opts = { buffer = args.buf, silent = true }
 
-    vim.keymap.set("n", "e", function()
-  local ok = pcall(vim.cmd, "cnext")
-  if not ok then
-    vim.cmd("cfirst")
-  end
-  vim.cmd("copen")
-    end, opts)
+        vim.keymap.set("n", "e", function()
+            local ok = pcall(vim.cmd, "cnext")
+            if not ok then
+                vim.cmd("cfirst")
+            end
+            vim.cmd("copen")
+        end, opts)
 
-    vim.keymap.set("n", "s", function()
-      local ok = pcall(vim.cmd, "cprev")
-  if not ok then
-    vim.cmd("clast")
-  end
-  vim.cmd("copen")
-    end, opts)
+        vim.keymap.set("n", "s", function()
+            local ok = pcall(vim.cmd, "cprev")
+            if not ok then
+                vim.cmd("clast")
+            end
+            vim.cmd("copen")
+        end, opts)
 
-    vim.keymap.set("n", "t", function()
-      vim.cmd("cclose")
-    end, opts)
+        vim.keymap.set("n", "t", function()
+            vim.cmd("cclose")
+        end, opts)
 
-    vim.keymap.set("n", "<CR>", function()
-      vim.cmd("cclose")
-    end, opts)
-
-  end,
+    end,
 })
 
 -- https://gist.github.com/smnatale/692ac4f256d5f19fbcbb78fe32c87604
@@ -653,3 +642,19 @@ vim.api.nvim_create_autocmd("FileType", {
 
   end,
 })
+
+-- Harpon
+local harpoon = require("harpoon")
+harpoon:setup()
+vim.keymap.set("n", "<leader>tt", function() harpoon:list():add() end)
+vim.keymap.set("n", "<leader>tl", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
+vim.keymap.set("n", "<leader>tn", function() harpoon:list():select(1) end)
+vim.keymap.set("n", "<leader>te", function() harpoon:list():select(2) end)
+vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
+vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
+local argv = vim.fn.argv()
+if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
+    -- attempt to navigate to first buffer (last command of init.lua to apply triggers for syntax treesitter lsp etc...)
+    harpoon:list():select(1)
+end
+
