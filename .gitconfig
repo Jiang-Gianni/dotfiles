@@ -13,8 +13,6 @@
     tool = nvimdiff
 [mergetool "nvimdiff"]
     cmd = nvim -d -c \"wincmd w\" \"$LOCAL\" \"$MERGED\" \"$REMOTE\"
-[alias]
-    jump = "~/.local/bin/git-jump"
 [init]
     defaultBranch = main
 [rebase]

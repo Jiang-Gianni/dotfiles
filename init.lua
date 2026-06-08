@@ -213,9 +213,11 @@ vim.g.undotree_WindowLayout = 2
 vim.keymap.set("n", "<leader>u", "<cmd>UndotreeToggle<CR>")
 
 -- FZF
+local fzf_lua = require("fzf-lua")
+local actions = fzf_lua.actions
 local AQUA =  "#7ffff7"
 vim.api.nvim_set_hl(0, "FzfPointer", {fg =AQUA,  bold = true})
-local fzf_lua = require("fzf-lua")
+vim.api.nvim_set_hl(0, "FzfLuaFzfPointer", {fg =AQUA,  bold = true})
 fzf_lua.setup{
     winopts = {
         height = 1,
@@ -232,15 +234,25 @@ fzf_lua.setup{
     git = {
         commits = {
             cmd = [[git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' ]],
-            preview = "git --no-pager show -w --word-diff --color=always {1}"
+            preview = "git --no-pager show -w --word-diff --color=always {1}",
+            actions = {
+                ["+"]  = { fn = actions.git_yank_commit, exec_silent = true },
+            },
         },
         bcommits = {
             cmd = [[git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' {file} ]],
-            preview = "git --no-pager show -w --word-diff --color=always {1} -- {file}"
+            preview = "git --no-pager show -w --word-diff --color=always {1} -- {file}",
+            actions = {
+                ["+"]  = { fn = actions.git_yank_commit, exec_silent = true },
+            },
         },
         branches = {
             preview = "git log -n 10 --date=iso --color=always --abbrev-commit --stat {1}",
             cmd_add = {"git", "switch", "-c"},
+            actions = {
+                ["-"]  = { fn = actions.git_branch_del, reload = true },
+                ["+"]  = { fn = actions.git_branch_add, field_index = "{q}", reload = true },
+            }
         }
 
     }
@@ -258,10 +270,9 @@ vim.keymap.set("n", "<leader>fh", function() fzf_lua.history() end)
 vim.keymap.set("n", "<leader>fb", function() fzf_lua.buffers() end)
 vim.keymap.set("n", "<leader>fp", function() fzf_lua.keymaps() end)
 vim.keymap.set("n", "<leader>fm", function() fzf_lua.manpages() end)
-vim.keymap.set("n", "<leader>fe", function() fzf_lua.commands() end)
+vim.keymap.set("n", "<leader>fi", function() fzf_lua.commands() end)
 
-vim.keymap.set("n", "<leader>fn", function() fzf_lua.lsp_references() end)
-vim.keymap.set("n", "<leader>fe", function() fzf_lua.lsp_definitions() end)
+vim.keymap.set("n", "<leader>fe", function() fzf_lua.lsp_references() end)
 vim.keymap.set("n", "<leader>fa", function() fzf_lua.lsp_code_actions() end)
 vim.keymap.set("n", "<leader>fd", function() fzf_lua.lsp_document_diagnostics() end)
 
@@ -392,6 +403,7 @@ vim.lsp.enable({'gopls', 'dartls', 'ts_ls'})
 
 vim.keymap.set("i", "qq", "<C-x><C-o>", { noremap = true, silent = true })
 vim.keymap.set('n', '<leader>e', ':copen<CR>')
+vim.keymap.set("n", "gd", function() fzf_lua.lsp_definitions() end)
 
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "qf",
@@ -456,6 +468,24 @@ vim.api.nvim_create_autocmd("FileType", {
 	group = vim.api.nvim_create_augroup("no_auto_comment", {}),
 	callback = function()
 		vim.opt_local.formatoptions:remove({ "c", "r", "o" })
+	end,
+})
+
+-- show cursorline only in active window enable
+vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+	group = vim.api.nvim_create_augroup("active_cursorline", { clear = true }),
+	callback = function()
+		vim.opt_local.cursorline = true
+		vim.opt_local.cursorcolumn = true
+	end,
+})
+
+-- show cursorline only in active window disable
+vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
+	group = "active_cursorline",
+	callback = function()
+		vim.opt_local.cursorline = false
+		vim.opt_local.cursorcolumn = false
 	end,
 })
 
