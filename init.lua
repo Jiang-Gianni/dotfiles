@@ -219,6 +219,9 @@ local AQUA =  "#7ffff7"
 vim.api.nvim_set_hl(0, "FzfPointer", {fg =AQUA,  bold = true})
 vim.api.nvim_set_hl(0, "FzfLuaFzfPointer", {fg =AQUA,  bold = true})
 fzf_lua.setup{
+    files = {
+        no_ignore = true,
+    },
     winopts = {
         height = 1,
         width = 1,
