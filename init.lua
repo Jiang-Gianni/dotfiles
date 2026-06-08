@@ -221,6 +221,7 @@ vim.api.nvim_set_hl(0, "FzfLuaFzfPointer", {fg =AQUA,  bold = true})
 fzf_lua.setup{
     files = {
         no_ignore = true,
+        cwd_prompt = false,
     },
     winopts = {
         height = 1,

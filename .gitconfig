@@ -9,6 +9,9 @@
 	cmd = nvim -c \"DiffTool $LOCAL $REMOTE\"
 [difftool]
     prompt = false
+[alias]
+    pr = "!f() { gh co $1 && git difftool -d $(git merge-base HEAD origin); }; f"
+    rv = "!f() { git difftool -d $(git merge-base HEAD origin); }; f"
 [merge]
     tool = nvimdiff
 [mergetool "nvimdiff"]
