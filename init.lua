@@ -190,8 +190,9 @@ vim.cmd.packadd('nvim.tohtml')
 require("tokyonight").setup()
 vim.cmd.colorscheme("tokyonight-night")
 
--- remove folded highlight
 vim.api.nvim_set_hl(0, "Folded", { fg = "#b0b0b0", bg = "NONE", bold=true })
+vim.api.nvim_set_hl(0, "StatusLine", { bg = "NONE" })
+vim.api.nvim_set_hl(0, "StatusLineNC", { bg = "NONE" })
 
 require("oil").setup({
     view_options = {
@@ -316,7 +317,6 @@ local function github_permalink()
     local file = vim.fn.expand("%")
     local api = vim.api
 
-    local branch = vim.fn.systemlist('git rev-parse --abbrev-ref HEAD')[1]
     local line = api.nvim_win_get_cursor(0)[1]
 
   local remote =
@@ -334,7 +334,30 @@ local function github_permalink()
   print(url)
 end
 
-require('gitsigns').setup{}
+require('gitsigns').setup({
+    current_line_blame_opts = {
+        ignore_whitespace = true,
+    },
+    on_attach = function(bufnr)
+        local gitsigns = require('gitsigns')
+        vim.keymap.set('n', ']c', function()
+            if vim.wo.diff then
+                vim.cmd.normal({']c', bang = true})
+            else
+                gitsigns.nav_hunk('next')
+            end
+        end, {buffer=bufnr})
+
+        vim.keymap.set('n', '[c', function()
+            if vim.wo.diff then
+                vim.cmd.normal({'[c', bang = true})
+            else
+                gitsigns.nav_hunk('prev')
+            end
+        end, {buffer=bufnr})
+
+    end
+})
 
 vim.keymap.set("n", "<leader>gl", function() fzf_lua.git_commits() end)
 vim.keymap.set("n", "<leader>gg", function() fzf_lua.git_branches() end)
@@ -352,7 +375,7 @@ vim.keymap.set("n", "<leader>gP", ":!git push -u origin HEAD --force-with-lease<
 vim.keymap.set("n", "<leader>gh", ":Gitsigns preview_hunk_inline<CR>")
 vim.keymap.set("n", "<leader>gx", ":Gitsigns toggle_deleted<CR>")
 vim.keymap.set("n", "<leader>gd", ":Gitsigns diffthis origin/HEAD<CR>")
-vim.keymap.set("n", "<leader>gb", ":Gitsigns blame_line<CR>")
+vim.keymap.set("n", "<leader>gb", ":lua require('gitsigns').blame_line({full=true})<CR>")
 vim.keymap.set("n", "<leader>gB", ":Gitsigns blame<CR>")
 
 vim.keymap.set("n", "<leader>go", open_github_pr)
