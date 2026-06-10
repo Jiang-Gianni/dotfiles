@@ -1,3 +1,4 @@
+vim.loader.enable()
 vim.g.mapleader = " "
 
 vim.opt.compatible = false
@@ -171,21 +172,19 @@ vim.pack.add({
   "https://github.com/neovim/nvim-lspconfig",
   "https://github.com/stevearc/oil.nvim",
   "https://github.com/ibhagwan/fzf-lua",
-  "https://github.com/mfussenegger/nvim-dap",
+  -- "https://github.com/mfussenegger/nvim-dap",
   "https://github.com/lewis6991/gitsigns.nvim",
   "https://github.com/romus204/tree-sitter-manager.nvim",
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/tpope/vim-commentary",
-  "https://github.com/mbbill/undotree",
   "https://github.com/nvim-lua/plenary.nvim",
   {src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2"},
 })
 
-vim.cmd.packadd('cfilter')
--- vim.cmd.packadd('nvim.undotree')
+-- vim.cmd.packadd('cfilter')
 vim.cmd.packadd('nvim.difftool')
-vim.cmd.packadd('nvim.tohtml')
+-- vim.cmd.packadd('nvim.tohtml')
 
 require("tokyonight").setup()
 vim.cmd.colorscheme("tokyonight-night")
@@ -208,10 +207,6 @@ if vim.fn.isdirectory(undodir) == 0 then
 end
 vim.opt.undodir = undodir
 vim.opt.undofile = true
-vim.g.undotree_SetFocusWhenToggle = 1
-vim.g.undotree_ShortIndicators = 1
-vim.g.undotree_WindowLayout = 2
-vim.keymap.set("n", "<leader>u", "<cmd>UndotreeToggle<CR>")
 
 -- FZF
 local fzf_lua = require("fzf-lua")
@@ -290,11 +285,12 @@ vim.keymap.set("n", "<leader>ff", function() fzf_lua.files() end)
 vim.keymap.set("n", "<leader>fn", function() fzf_lua.resume() end)
 vim.keymap.set("n", "<leader>fl", function() fzf_lua.blines() end)
 vim.keymap.set("n", "<leader>fg", function() fzf_lua.git_status() end)
-vim.keymap.set("n", "<leader>fh", function() fzf_lua.history() end)
 vim.keymap.set("n", "<leader>fb", function() fzf_lua.buffers() end)
 vim.keymap.set("n", "<leader>fp", function() fzf_lua.keymaps() end)
 vim.keymap.set("n", "<leader>fm", function() fzf_lua.manpages() end)
+vim.keymap.set("n", "<leader>fh", function() fzf_lua.helptags() end)
 vim.keymap.set("n", "<leader>fi", function() fzf_lua.commands() end)
+vim.keymap.set("n", "<leader>fu", function() fzf_lua.undotree() end)
 
 vim.keymap.set("n", "<leader>fe", function() fzf_lua.lsp_references() end)
 vim.keymap.set("n", "<leader>fa", function() fzf_lua.lsp_code_actions() end)
