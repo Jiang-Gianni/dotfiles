@@ -313,20 +313,8 @@ local function open_github_pr()
 end
 
 local function github_permalink()
+    local file = vim.fn.expand("%")
     local api = vim.api
-    local file = api.nvim_buf_get_name(0)
-    if file == '' then
-        print('No file')
-        return
-    end
-
-    local cwd = vim.fn.getcwd()
-    local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
-    local relpath = vim.fn.fnamemodify(file, ':.')
-    if git_root and git_root ~= '' then
-        relpath = vim.fn.fnamemodify(file, ':~:.')
-        relpath = vim.fn.systemlist('realpath --relative-to=' .. git_root .. ' ' .. file)[1]
-    end
 
     local branch = vim.fn.systemlist('git rev-parse --abbrev-ref HEAD')[1]
     local line = api.nvim_win_get_cursor(0)[1]
@@ -341,7 +329,7 @@ local function github_permalink()
       :gsub("%.git$", "")
 
 
-  local url = string.format('%s/blob/%s/%s#L%d', repo_url, branch, relpath, line)
+  local url = string.format('%s/blob/%s/%s#L%d', repo_url, branch, file, line)
   open_url(url)
   print(url)
 end
