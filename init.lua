@@ -251,6 +251,7 @@ fzf_lua.setup{
             },
         },
         branches = {
+            cmd = "git branch --color",
             preview = "git log -n 10 --date=iso --color=always --abbrev-commit --stat {1}",
             cmd_add = {"git", "switch", "-c"},
             actions = {
@@ -281,6 +282,22 @@ vim.keymap.set("n", "<leader>fa", function() fzf_lua.lsp_code_actions() end)
 vim.keymap.set("n", "<leader>fd", function() fzf_lua.lsp_document_diagnostics() end)
 
 -- Git
+local function open_url(url)
+  if vim.fn.has("macunix") == 1 then
+    vim.fn.system("open " .. vim.fn.shellescape(url))
+  elseif vim.fn.has("unix") == 1 then
+    vim.fn.system(
+      "xdg-open "
+        .. vim.fn.shellescape(url)
+        .. " >/dev/null 2>&1 &"
+    )
+  elseif vim.fn.has("win32") == 1 then
+    vim.fn.system(
+      'start "" ' .. vim.fn.shellescape(url)
+    )
+  end
+end
+
 local function open_github_pr()
   local remote =
     vim.trim(vim.fn.system("git remote get-url origin"))
@@ -291,20 +308,42 @@ local function open_github_pr()
       :gsub("^git@github.com:", "https://github.com/")
       :gsub("%.git$", "")
   local pr_url = url .. "/pull/new/" .. branch
-  if vim.fn.has("macunix") == 1 then
-    vim.fn.system("open " .. vim.fn.shellescape(pr_url))
-  elseif vim.fn.has("unix") == 1 then
-    vim.fn.system(
-      "xdg-open "
-        .. vim.fn.shellescape(pr_url)
-        .. " >/dev/null 2>&1 &"
-    )
-  elseif vim.fn.has("win32") == 1 then
-    vim.fn.system(
-      'start "" ' .. vim.fn.shellescape(pr_url)
-    )
-  end
+  open_url(pr_url)
   print(pr_url)
+end
+
+local function github_permalink()
+    local api = vim.api
+    local file = api.nvim_buf_get_name(0)
+    if file == '' then
+        print('No file')
+        return
+    end
+
+    local cwd = vim.fn.getcwd()
+    local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+    local relpath = vim.fn.fnamemodify(file, ':.')
+    if git_root and git_root ~= '' then
+        relpath = vim.fn.fnamemodify(file, ':~:.')
+        relpath = vim.fn.systemlist('realpath --relative-to=' .. git_root .. ' ' .. file)[1]
+    end
+
+    local branch = vim.fn.systemlist('git rev-parse --abbrev-ref HEAD')[1]
+    local line = api.nvim_win_get_cursor(0)[1]
+
+  local remote =
+    vim.trim(vim.fn.system("git remote get-url origin"))
+  local branch =
+    vim.trim(vim.fn.system("git branch --show-current"))
+  local repo_url =
+    remote
+      :gsub("^git@github.com:", "https://github.com/")
+      :gsub("%.git$", "")
+
+
+  local url = string.format('%s/blob/%s/%s#L%d', repo_url, branch, relpath, line)
+  open_url(url)
+  print(url)
 end
 
 require('gitsigns').setup{}
@@ -313,10 +352,9 @@ vim.keymap.set("n", "<leader>gl", function() fzf_lua.git_commits() end)
 vim.keymap.set("n", "<leader>gg", function() fzf_lua.git_branches() end)
 vim.keymap.set("n", "<leader>gb", "<cmd>GitLineCommits<CR>")
 
-vim.keymap.set("n", "<leader>gS", ":!git switch -c ")
-vim.keymap.set("n", "<leader>gr", ":!git rebase origin/HEAD --update-refs")
+vim.keymap.set("n", "<leader>gr", ":!git rebase origin/HEAD --update-refs<CR>")
 vim.keymap.set("n", "<leader>gR", ":!git restore --source=origin/HEAD %<CR>")
-vim.keymap.set("n", "<leader>gf", ":!git fetch --prune origin<CR>")
+vim.keymap.set("n", "<leader>gf", ":!git fetch origin main<CR>")
 vim.keymap.set("n", "<leader>gc", ":!git commit -m \"\"<Left>")
 vim.keymap.set("n", "<leader>gC", ":!git commit --amend --no-edit<CR>")
 vim.keymap.set("n", "<leader>ga", ":!git add .<CR>")
@@ -326,8 +364,11 @@ vim.keymap.set("n", "<leader>gP", ":!git push -u origin HEAD --force-with-lease<
 vim.keymap.set("n", "<leader>gh", ":Gitsigns preview_hunk_inline<CR>")
 vim.keymap.set("n", "<leader>gx", ":Gitsigns toggle_deleted<CR>")
 vim.keymap.set("n", "<leader>gd", ":Gitsigns diffthis origin/HEAD<CR>")
+vim.keymap.set("n", "<leader>gb", ":Gitsigns blame_line<CR>")
+vim.keymap.set("n", "<leader>gB", ":Gitsigns blame<CR>")
 
 vim.keymap.set("n", "<leader>go", open_github_pr)
+vim.keymap.set("n", "<leader>gO", github_permalink)
 vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
 
 -- Leap
@@ -356,6 +397,7 @@ vim.api.nvim_create_autocmd('FileType', {
 local format_ft = {
   go = true,
   typescript = true,
+  dart = true,
 }
 
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -368,16 +410,14 @@ vim.api.nvim_create_autocmd('LspAttach', {
             vim.lsp.completion.enable(true, client.id, args.buf)
         end
 
-        if client.server_capabilities.documentFormattingProvider then
-            vim.api.nvim_create_autocmd("BufWritePre", {
-                buffer = bufnr,
-                callback = function()
-                    if format_ft[vim.bo.filetype] then
-                        vim.lsp.buf.format({ async = false })
-                    end
-                end,
-            })
-        end
+        vim.api.nvim_create_autocmd("BufWritePre", {
+            buffer = bufnr,
+            callback = function()
+                if format_ft[vim.bo.filetype] then
+                    vim.lsp.buf.format({ async = false })
+                end
+            end,
+        })
     end
 })
 
