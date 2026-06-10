@@ -228,6 +228,15 @@ fzf_lua.setup{
         height = 1,
         width = 1,
         fullscreen = true,
+        preview = {
+            wrap = true,
+            vertical = "up:50%",
+            horizontal = "right:50%",
+            layout = "vertical",
+            winopts = {
+                cursorcolumn = true,
+            }
+        },
     },
     fzf_opts = {
         ["--layout"] = "default",
@@ -236,17 +245,27 @@ fzf_lua.setup{
         true,
       ["pointer"]     = { "fg", "FzfPointer" },
     },
+    previewers = {
+        git_diff = {
+            cmd_deleted     = "git diff -w --word-diff=color HEAD --",
+            cmd_modified    = "git diff -w --word-diff=color HEAD",
+            cmd_untracked   = "git diff -w --word-diff=color --no-index /dev/null",
+        }
+    },
     git = {
+        diff = {
+            preview = "git diff -w --word-diff=color {ref} {file}",
+        },
         commits = {
             cmd = [[git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' ]],
-            preview = "git --no-pager show -w --word-diff --color=always {1}",
+            preview = "git --no-pager show -w --word-diff=color {1}",
             actions = {
                 ["+"]  = { fn = actions.git_yank_commit, exec_silent = true },
             },
         },
         bcommits = {
             cmd = [[git --no-pager log --oneline --no-patch --color=always --pretty=format:'%C(yellow)%h%Creset %s %C(blue)%an%Creset %C(green)%ar%Creset' {file} ]],
-            preview = "git --no-pager show -w --word-diff --color=always {1} -- {file}",
+            preview = "git --no-pager show -w --word-diff=color {1} -- {file}",
             actions = {
                 ["+"]  = { fn = actions.git_yank_commit, exec_silent = true },
             },
@@ -264,12 +283,11 @@ fzf_lua.setup{
     }
 }
 
-vim.api.nvim_create_user_command("Colors", function(opts) fzf_lua.colorschemes() end, {nargs = "*",})
-
 vim.keymap.set("n", "<leader>fw", function() fzf_lua.grep_cword() end)
 vim.keymap.set("n", "<leader>fr", function() fzf_lua.live_grep() end)
 vim.keymap.set("n", "<leader>fq", function() fzf_lua.quickfix_stack() end)
 vim.keymap.set("n", "<leader>ff", function() fzf_lua.files() end)
+vim.keymap.set("n", "<leader>fn", function() fzf_lua.resume() end)
 vim.keymap.set("n", "<leader>fl", function() fzf_lua.blines() end)
 vim.keymap.set("n", "<leader>fg", function() fzf_lua.git_status() end)
 vim.keymap.set("n", "<leader>fh", function() fzf_lua.history() end)
