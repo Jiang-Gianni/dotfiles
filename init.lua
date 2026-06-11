@@ -1,3 +1,15 @@
+local start_time = vim.uv.hrtime()
+
+vim.api.nvim_create_autocmd("VimEnter", {
+  once = true,
+  callback = function()
+    local ms = (vim.uv.hrtime() - start_time) / 1e6
+    vim.schedule(function()
+      vim.notify(string.format("Startup time: %.2f ms", ms))
+    end)
+  end,
+})
+
 vim.loader.enable()
 vim.g.mapleader = " "
 
@@ -177,7 +189,7 @@ vim.pack.add({
   "https://github.com/romus204/tree-sitter-manager.nvim",
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
-  "https://github.com/tpope/vim-commentary",
+  "https://github.com/nvim-mini/mini.surround",
   "https://github.com/nvim-lua/plenary.nvim",
   {src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2"},
 })
@@ -207,6 +219,19 @@ if vim.fn.isdirectory(undodir) == 0 then
 end
 vim.opt.undodir = undodir
 vim.opt.undofile = true
+
+require('mini.surround').setup({
+    mappings = {
+        add = 'ys', -- Add surrounding in Normal and Visual modes
+        delete = 'ds', -- Delete surrounding
+        find = 'fs', -- Find surrounding (to the right)
+        find_left = 'Fs', -- Find surrounding (to the left)
+        highlight = 'hs', -- Highlight surrounding
+        replace = 'cs', -- Replace surrounding
+        suffix_last = 'l', -- Suffix to search with "prev" method
+        suffix_next = 'n', -- Suffix to search with "next" method
+    },
+}) 
 
 -- FZF
 local fzf_lua = require("fzf-lua")
@@ -619,7 +644,7 @@ vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
 vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
 local argv = vim.fn.argv()
 if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
-    -- attempt to navigate to first buffer (last command of init.lua to apply triggers for syntax treesitter lsp etc...)
     harpoon:list():select(1)
+   vim.cmd("bd1") 
 end
 
