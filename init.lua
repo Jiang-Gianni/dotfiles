@@ -184,14 +184,11 @@ vim.pack.add({
   "https://github.com/neovim/nvim-lspconfig",
   "https://github.com/stevearc/oil.nvim",
   "https://github.com/ibhagwan/fzf-lua",
-  -- "https://github.com/mfussenegger/nvim-dap",
   "https://github.com/lewis6991/gitsigns.nvim",
   "https://github.com/romus204/tree-sitter-manager.nvim",
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/nvim-mini/mini.surround",
-  "https://github.com/nvim-lua/plenary.nvim",
-  {src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2"},
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -222,16 +219,20 @@ vim.opt.undofile = true
 
 require('mini.surround').setup({
     mappings = {
-        add = 'ys', -- Add surrounding in Normal and Visual modes
-        delete = 'ds', -- Delete surrounding
-        find = 'fs', -- Find surrounding (to the right)
-        find_left = 'Fs', -- Find surrounding (to the left)
-        highlight = 'hs', -- Highlight surrounding
-        replace = 'cs', -- Replace surrounding
-        suffix_last = 'l', -- Suffix to search with "prev" method
-        suffix_next = 'n', -- Suffix to search with "next" method
+        add = 'ys',
+        delete = 'ds',
+        find = '',
+        find_left = '',
+        highlight = '',
+        replace = 'cs',
+        suffix_last = 'l',
+        suffix_next = 'n',
     },
+    search_method = 'cover_or_nearest',
 }) 
+
+vim.keymap.del('x', 'ys')
+vim.keymap.set('x', 'S', [[:<C-u>lua MiniSurround.add('visual')<CR>]], { silent = true })
 
 -- FZF
 local fzf_lua = require("fzf-lua")
@@ -400,7 +401,6 @@ require('gitsigns').setup({
 
 vim.keymap.set("n", "<leader>gl", function() fzf_lua.git_commits() end)
 vim.keymap.set("n", "<leader>gg", function() fzf_lua.git_branches() end)
-vim.keymap.set("n", "<leader>gb", "<cmd>GitLineCommits<CR>")
 
 vim.keymap.set("n", "<leader>gr", ":!git rebase origin/HEAD --update-refs<CR>")
 vim.keymap.set("n", "<leader>gR", ":!git restore --source=origin/HEAD %<CR>")
@@ -423,8 +423,7 @@ vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
 
 -- Leap
 vim.api.nvim_set_hl(0, "LeapLabel", {fg =AQUA, bold = true})
-vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap)')
-vim.keymap.set('n',               'S', '<Plug>(leap-from-window)')
+vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap-anywhere)')
 vim.keymap.set({'n'}, 'l', function ()
   require('leap.remote').action()
 end)
@@ -433,7 +432,7 @@ vim.keymap.set({'o'}, 'r', function()
 end)
 local leap = require("leap")
 leap.opts.safe_labels = {}
-leap.opts.labels = "setnriaofuplwyqgvmcdxhzbjk"
+leap.opts.labels = "setnriaofuplwyqgvmcdxhzbjk1234567890SETNRIAOFUPLWYQGVMCDXHZBJK"
 leap.opts.max_phase_one_targets = 0
 leap.opts.special_keys.next_group = "<space>"
 
@@ -633,18 +632,97 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Harpon
-local harpoon = require("harpoon")
-harpoon:setup()
-vim.keymap.set("n", "<leader>tt", function() harpoon:list():add() end)
-vim.keymap.set("n", "<leader>tl", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
-vim.keymap.set("n", "<leader>tn", function() harpoon:list():select(1) end)
-vim.keymap.set("n", "<leader>te", function() harpoon:list():select(2) end)
-vim.keymap.set("n", "<leader>ti", function() harpoon:list():select(3) end)
-vim.keymap.set("n", "<leader>to", function() harpoon:list():select(4) end)
+-- https://github.com/niqodea/lasso.nvim/blob/main/lua/lasso/init.lua
+local marks_tracker_path = vim.fn.expand('~/.config/nvim/marks'..vim.fn.getcwd())
+vim.fn.mkdir(vim.fn.fnamemodify(marks_tracker_path, ":h"), "p")
+
+local function get_marks_tracker_bufnr()
+    local existing_marks_tracker_bufnr = vim.fn.bufnr(marks_tracker_path)
+    if existing_marks_tracker_bufnr ~= -1 then
+        return existing_marks_tracker_bufnr
+    end
+
+    local new_marks_tracker_bufnr = vim.api.nvim_create_buf(false, false)
+    vim.api.nvim_buf_set_name(new_marks_tracker_bufnr, marks_tracker_path)
+    vim.api.nvim_buf_call(new_marks_tracker_bufnr, vim.cmd.edit)
+
+    return new_marks_tracker_bufnr
+end
+
+function open_marked_file(n)
+    local marks_tracker_bufnr = get_marks_tracker_bufnr()
+
+    local n_ = n - 1  -- zero-based numbering
+    local lines = vim.api.nvim_buf_get_lines(marks_tracker_bufnr, n_, n_ + 1, false)
+
+    if #lines == 0 then
+        return
+    end
+
+    local file_path = lines[1]
+    vim.cmd('edit ' .. vim.fn.fnameescape(file_path))
+end
+
+local terminal_bufnrs = {}
+
+function open_terminal(n)
+    local bufnr = terminal_bufnrs[n]
+
+    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_win_set_buf(0, bufnr)
+        return
+    end
+
+    vim.cmd('terminal')
+    terminal_bufnrs[n] = vim.api.nvim_get_current_buf()
+end
+
+vim.keymap.set("n", "<leader>tl", function()
+    local marks_tracker_bufnr = get_marks_tracker_bufnr()
+    vim.api.nvim_win_set_buf(0, marks_tracker_bufnr)
+
+end)
+
+vim.keymap.set("n", "<leader>tt", function() 
+    if vim.api.nvim_buf_get_option(0, 'buftype') ~= '' then
+        error('The current buffer is not associated with a regular file')
+    end
+
+    local marks_tracker_bufnr = get_marks_tracker_bufnr()
+
+    local buffer_name = vim.fn.expand('%')
+    local file_path = vim.fn.fnamemodify(buffer_name, ':~:.')
+
+    local lines = vim.api.nvim_buf_get_lines(marks_tracker_bufnr, 0, -1, false)
+    for _, line in ipairs(lines) do
+        if line == file_path then return end
+    end
+
+    local content = table.concat(lines, '\n')
+    if content == '' then
+        -- File is empty, set first line
+        vim.api.nvim_buf_set_lines(marks_tracker_bufnr, 0, 1, false, {file_path})
+    else
+        -- Append to the file
+        vim.api.nvim_buf_set_lines(marks_tracker_bufnr, -1, -1, false, {file_path})
+    end
+    vim.api.nvim_buf_call(marks_tracker_bufnr, function()
+        vim.cmd("write")
+    end)
+end)
+
+vim.keymap.set("n", "<leader>tn", function() open_marked_file(1) end)
+vim.keymap.set("n", "<leader>te", function() open_marked_file(2) end)
+vim.keymap.set("n", "<leader>ti", function() open_marked_file(3) end)
+vim.keymap.set("n", "<leader>to", function() open_marked_file(4) end)
+vim.keymap.set("n", "<leader>tm", function() open_terminal(1) end)
+vim.keymap.set("n", "<leader>td", function() open_terminal(2) end)
+vim.keymap.set("n", "<leader>th", function() open_terminal(3) end)
+vim.keymap.set("n", "<leader>tb", function() open_terminal(4) end)
+
 local argv = vim.fn.argv()
 if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
-    harpoon:list():select(1)
-   vim.cmd("bd1") 
+    open_marked_file(1)
+    vim.cmd("bd1") 
 end
 
