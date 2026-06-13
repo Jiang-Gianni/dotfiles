@@ -104,11 +104,11 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 })
 
 _G.git_branch = function()
-  local branch = vim.fn.systemlist("git branch --show-current")[1]
+  local branch = vim.fn.systemlist("git branch --show-current 2>/dev/null")[1]
   if not branch or branch == "" then
     return ""
   end
-  return branch
+  return "~ "..branch
 end
 
 function _G.StatusFilename()
@@ -138,7 +138,6 @@ vim.opt.statusline = table.concat({
   "%m",
   "%#StatusLine#",
   " %{v:lua.git_branch()} ",
-  "[%{get(b:,'gitsigns_status','')}]",
   "%=",
   "%y ",
   "%{&fileencoding?&fileencoding:&encoding} ",
@@ -166,8 +165,8 @@ vim.keymap.set("n", "<leader>i", "<C-i>")
 vim.keymap.set("n", "<leader>o", "<C-o>")
 vim.keymap.set("n", "<leader>q", "<cmd>bd!<CR>")
 vim.keymap.set("n", "<leader>x", "vip:!sh<CR>")
-vim.keymap.set("n", "<leader>b", "<cmd>e %:h<CR>")
 vim.keymap.set("n", "<leader>h", function() vim.fn.setreg("+", vim.fn.expand("%")) end)
+
 vim.keymap.set("n", "<leader>nw", "<C-w>k")
 vim.keymap.set("n", "<leader>nW", "<C-w>K")
 vim.keymap.set("n", "<leader>nr", "<C-w>j")
@@ -178,10 +177,14 @@ vim.keymap.set("n", "<leader>na", "<C-w>h")
 vim.keymap.set("n", "<leader>nA", "<C-w>H")
 vim.keymap.set("n", "<leader>nn", "<C-w>w")
 vim.keymap.set("n", "<leader>nt", "<C-w>W")
+vim.keymap.set("n", "<leader>nn", ":vertical resize +10<CR>")
+vim.keymap.set("n", "<leader>ne", ":vertical resize -10<CR>")
+vim.keymap.set("n", "<leader>ni", ":vs<CR>")
+vim.keymap.set("n", "<leader>no", ":only<CR>")
+
 vim.keymap.set("n", "<leader>as", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
 
 vim.pack.add({
-  "https://github.com/neovim/nvim-lspconfig",
   "https://github.com/stevearc/oil.nvim",
   "https://github.com/ibhagwan/fzf-lua",
   "https://github.com/lewis6991/gitsigns.nvim",
@@ -447,6 +450,7 @@ local format_ft = {
   go = true,
   typescript = true,
   dart = true,
+  templ = true,
 }
 
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -492,7 +496,68 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
-vim.lsp.enable({'gopls', 'dartls', 'ts_ls'})
+vim.lsp.enable({'gopls', 'dartls', 'ts_ls', 'templ'})
+vim.lsp.config['gopls'] = {
+    name = "gopls",
+    cmd = { "gopls" },
+    filetypes = {"go", "gomod"},
+    root_dir = vim.fs.root(0, { "go.mod", ".git" }),
+
+    settings = {
+        gopls = {
+            analyses = { unusedparams = true,},
+            staticcheck = true,
+            gofumpt = true,
+        },
+    },
+}
+vim.lsp.config['dartls'] = {
+    name = "dartls",
+    cmd = { 'dart', 'language-server', '--protocol=lsp' },
+    filetypes = { 'dart' },
+    root_markers = { 'pubspec.yaml' },
+    init_options = {
+        onlyAnalyzeProjectsWithOpenFiles = true,
+        suggestFromUnimportedLibraries = true,
+        closingLabels = true,
+        outline = true,
+        flutterOutline = true,
+    },
+    settings = {
+        dart = {
+            completeFunctionCalls = true,
+            showTodos = true,
+        },
+    },
+}
+vim.lsp.config['ts_ls'] = {
+    name = "ts_ls",
+    init_options = { hostInfo = 'neovim' },
+    cmd = function(dispatchers, config)
+        return vim.lsp.rpc.start({'typescript-language-server', '--stdio' }, dispatchers)
+    end,
+    filetypes = {
+        'javascript',
+        'javascriptreact',
+        'typescript',
+        'typescriptreact',
+    },
+    root_dir = function(bufnr, on_dir)
+        local root_markers = { 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock', '.git' }
+        local project_root = vim.fs.root(bufnr, root_markers)
+        on_dir(project_root or vim.fn.getcwd())
+    end, 
+}
+vim.lsp.config['templ'] = {
+    cmd = { 'templ', 'lsp' },
+    filetypes = { 'templ' },
+    root_markers = { 'go.work', 'go.mod', '.git' },
+}
+
+vim.diagnostic.config({
+    virtual_text = true,
+    underline = false,
+})
 
 vim.keymap.set("i", "qq", "<C-x><C-o>", { noremap = true, silent = true })
 vim.keymap.set('n', '<leader>e', ':copen<CR>')
@@ -711,14 +776,14 @@ vim.keymap.set("n", "<leader>tt", function()
     end)
 end)
 
-vim.keymap.set("n", "<leader>tn", function() open_marked_file(1) end)
-vim.keymap.set("n", "<leader>te", function() open_marked_file(2) end)
-vim.keymap.set("n", "<leader>ti", function() open_marked_file(3) end)
-vim.keymap.set("n", "<leader>to", function() open_marked_file(4) end)
-vim.keymap.set("n", "<leader>tm", function() open_terminal(1) end)
-vim.keymap.set("n", "<leader>td", function() open_terminal(2) end)
-vim.keymap.set("n", "<leader>th", function() open_terminal(3) end)
-vim.keymap.set("n", "<leader>tb", function() open_terminal(4) end)
+vim.keymap.set({"n", "t"}, "<leader>tn", function() open_marked_file(1) end)
+vim.keymap.set({"n", "t"}, "<leader>te", function() open_marked_file(2) end)
+vim.keymap.set({"n","t"}, "<leader>ti", function() open_marked_file(3) end)
+vim.keymap.set({"n", "t"}, "<leader>to", function() open_marked_file(4) end)
+vim.keymap.set({"n", "t"}, "<leader>tm", function() open_terminal(1) end)
+vim.keymap.set({"n", "t"}, "<leader>td", function() open_terminal(2) end)
+vim.keymap.set({"n", "t"}, "<leader>th", function() open_terminal(3) end)
+vim.keymap.set({"n", "t"}, "<leader>tb", function() open_terminal(4) end)
 
 local argv = vim.fn.argv()
 if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
@@ -726,3 +791,9 @@ if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
     vim.cmd("bd1") 
 end
 
+vim.api.nvim_create_autocmd({ "TermOpen", "BufEnter" }, {
+  pattern = "term://*",
+  callback = function()
+    vim.cmd("startinsert")
+  end,
+})
