@@ -100,7 +100,8 @@ vim.opt.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
 require('vim._core.ui2').enable()
 
 vim.api.nvim_create_autocmd('TextYankPost', {
-  callback = function() vim.hl.on_yank() end,
+    group = vim.api.nvim_create_augroup("YankHighlight", { clear = true }),
+    callback = function() vim.hl.on_yank() end,
 })
 
 _G.git_branch = function()
@@ -192,6 +193,7 @@ vim.pack.add({
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/nvim-mini/mini.surround",
+  "https://github.com/nvim-treesitter/nvim-treesitter-context",
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -443,6 +445,7 @@ leap.opts.special_keys.next_group = "<space>"
 -- LSP+TreeSitter
 require("tree-sitter-manager").setup()
 vim.api.nvim_create_autocmd('FileType', {
+    group = vim.api.nvim_create_augroup("TreeSitterStart", { clear = true }),
     callback = function() pcall(vim.treesitter.start) end,
 })
 
@@ -454,6 +457,7 @@ local format_ft = {
 }
 
 vim.api.nvim_create_autocmd('LspAttach', {
+    group = vim.api.nvim_create_augroup("LspAttach", { clear = true }),
     callback = function(args)
         vim.o.signcolumn = 'yes:1'
         local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
@@ -475,24 +479,25 @@ vim.api.nvim_create_autocmd('LspAttach', {
 })
 
 vim.api.nvim_create_autocmd("BufWritePre", {
-  pattern = "*.go",
-  callback = function()
-    local params = vim.lsp.util.make_range_params()
-    params.context = { only = { "source.organizeImports" } }
+    group = vim.api.nvim_create_augroup("LspGolang", { clear = true }),
+    pattern = "*.go",
+    callback = function()
+        local params = vim.lsp.util.make_range_params()
+        params.context = { only = { "source.organizeImports" } }
 
-    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, 1000)
+        local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, 1000)
 
-    for _, res in pairs(result or {}) do
-      for _, action in pairs(res.result or {}) do
-        if action.edit then
-          vim.lsp.util.apply_workspace_edit(action.edit, "utf-16")
-        elseif action.command then
-          vim.lsp.buf.execute_command(action.command)
+        for _, res in pairs(result or {}) do
+            for _, action in pairs(res.result or {}) do
+                if action.edit then
+                    vim.lsp.util.apply_workspace_edit(action.edit, "utf-16")
+                elseif action.command then
+                    vim.lsp.buf.execute_command(action.command)
+                end
+            end
         end
-      end
-    end
 
-  end,
+    end,
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
@@ -564,6 +569,7 @@ vim.keymap.set('n', '<leader>e', ':copen<CR>')
 vim.keymap.set("n", "gd", function() fzf_lua.lsp_definitions() end)
 
 vim.api.nvim_create_autocmd("FileType", {
+    group = vim.api.nvim_create_augroup("QuickFixNav", { clear = true }),
     pattern = "qf",
     callback = function(args)
         local opts = { buffer = args.buf, silent = true }
@@ -594,27 +600,26 @@ vim.api.nvim_create_autocmd("FileType", {
 -- https://gist.github.com/smnatale/692ac4f256d5f19fbcbb78fe32c87604
 -- restore cursor to file position in previous editing session
 vim.api.nvim_create_autocmd("BufReadPost", {
-	callback = function(args)
-		local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
-		local line_count = vim.api.nvim_buf_line_count(args.buf)
-		if mark[1] > 0 and mark[1] <= line_count then
-			vim.api.nvim_win_set_cursor(0, mark)
-			-- defer centering slightly so it's applied after render
-			vim.schedule(function()
-				vim.cmd("normal! zz")
-			end)
-		end
-	end,
+    group = vim.api.nvim_create_augroup("RestoreLastMark", { clear = true }),
+    callback = function(args)
+        local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
+        local line_count = vim.api.nvim_buf_line_count(args.buf)
+        if mark[1] > 0 and mark[1] <= line_count then
+            vim.api.nvim_win_set_cursor(0, mark)
+            vim.cmd("normal! zz")
+        end
+    end,
 })
 
 -- open help in vertical split
 vim.api.nvim_create_autocmd("BufWinEnter", {
-  pattern = "*.txt", -- help files are treated as text buffers
-  callback = function(args)
-    if vim.bo[args.buf].filetype == "help" then
-      vim.cmd("wincmd L")
-    end
-  end,
+    group = vim.api.nvim_create_augroup("HelpPage", { clear = true }),
+    pattern = "*.txt", -- help files are treated as text buffers
+    callback = function(args)
+        if vim.bo[args.buf].filetype == "help" then
+            vim.cmd("wincmd L")
+        end
+    end,
 })
 -- auto resize splits when the terminal's window is resized
 vim.api.nvim_create_autocmd("VimResized", {
@@ -623,7 +628,7 @@ vim.api.nvim_create_autocmd("VimResized", {
 
 -- no auto continue comments on new line
 vim.api.nvim_create_autocmd("FileType", {
-	group = vim.api.nvim_create_augroup("no_auto_comment", {}),
+	group = vim.api.nvim_create_augroup("NoAutoComment", {}),
 	callback = function()
 		vim.opt_local.formatoptions:remove({ "c", "r", "o" })
 	end,
@@ -631,7 +636,7 @@ vim.api.nvim_create_autocmd("FileType", {
 
 -- show cursorline only in active window enable
 vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
-	group = vim.api.nvim_create_augroup("active_cursorline", { clear = true }),
+	group = vim.api.nvim_create_augroup("ActiveCursorLine", { clear = true }),
 	callback = function()
 		vim.opt_local.cursorline = true
 		vim.opt_local.cursorcolumn = true
@@ -640,7 +645,7 @@ vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
 
 -- show cursorline only in active window disable
 vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
-	group = "active_cursorline",
+	group = "ActiveCursorLine",
 	callback = function()
 		vim.opt_local.cursorline = false
 		vim.opt_local.cursorcolumn = false
@@ -652,18 +657,15 @@ vim.api.nvim_create_autocmd("CursorMoved", {
 	group = vim.api.nvim_create_augroup("LspReferenceHighlight", { clear = true }),
 	desc = "Highlight references under cursor",
 	callback = function()
-		-- Only run if the cursor is not in insert mode
 		if vim.fn.mode() ~= "i" then
 			local clients = vim.lsp.get_clients({ bufnr = 0 })
 			local supports_highlight = false
 			for _, client in ipairs(clients) do
 				if client.server_capabilities.documentHighlightProvider then
 					supports_highlight = true
-					break -- Found a supporting client, no need to check others
+					break
 				end
 			end
-
-			-- 3. Proceed only if an LSP is active AND supports the feature
 			if supports_highlight then
 				vim.lsp.buf.clear_references()
 				vim.lsp.buf.document_highlight()
@@ -683,18 +685,19 @@ vim.api.nvim_create_autocmd("InsertEnter", {
 
 -- SNIPPETS in insert mode
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = "go",
-  callback = function()
-      
-      vim.keymap.set("i", "frnn", function()
-          local snippet = [[if err != nil {
-              return fmt.Errorf(": %w", err)
-          }]]
-          vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
-          vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
-      end, {buffer = true})
+    group = vim.api.nvim_create_augroup("Snippets", { clear = true }),
+    pattern = "go",
+    callback = function()
 
-  end,
+        vim.keymap.set("i", "frnn", function()
+            local snippet = [[if err != nil {
+                return fmt.Errorf(": %w", err)
+            }]]
+            vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
+            vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
+        end, {buffer = true})
+
+    end,
 })
 
 -- https://github.com/niqodea/lasso.nvim/blob/main/lua/lasso/init.lua
