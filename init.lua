@@ -193,7 +193,6 @@ vim.pack.add({
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/nvim-mini/mini.surround",
-  "https://github.com/nvim-treesitter/nvim-treesitter-context",
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -702,7 +701,10 @@ vim.api.nvim_create_autocmd("FileType", {
 
 -- https://github.com/niqodea/lasso.nvim/blob/main/lua/lasso/init.lua
 local marks_tracker_path = vim.fn.expand('~/.config/nvim/marks'..vim.fn.getcwd())
-vim.fn.mkdir(vim.fn.fnamemodify(marks_tracker_path, ":h"), "p")
+local marks_dir = vim.fn.fnamemodify(marks_tracker_path, ":h")
+if vim.fn.isdirectory(marks_dir) == 0 then
+    vim.fn.mkdir(marks_dir, "p")
+end
 
 local function get_marks_tracker_bufnr()
     local existing_marks_tracker_bufnr = vim.fn.bufnr(marks_tracker_path)
@@ -779,19 +781,23 @@ vim.keymap.set("n", "<leader>tt", function()
     end)
 end)
 
-vim.keymap.set({"n", "t"}, "<leader>tn", function() open_marked_file(1) end)
-vim.keymap.set({"n", "t"}, "<leader>te", function() open_marked_file(2) end)
-vim.keymap.set({"n","t"}, "<leader>ti", function() open_marked_file(3) end)
-vim.keymap.set({"n", "t"}, "<leader>to", function() open_marked_file(4) end)
-vim.keymap.set({"n", "t"}, "<leader>tm", function() open_terminal(1) end)
-vim.keymap.set({"n", "t"}, "<leader>td", function() open_terminal(2) end)
-vim.keymap.set({"n", "t"}, "<leader>th", function() open_terminal(3) end)
-vim.keymap.set({"n", "t"}, "<leader>tb", function() open_terminal(4) end)
+vim.keymap.set("n", "<leader>tn", function() open_marked_file(1) end)
+vim.keymap.set("t", "<leader>tN", function() open_marked_file(1) end)
+vim.keymap.set("n", "<leader>te", function() open_marked_file(2) end)
+vim.keymap.set("t", "<leader>tE", function() open_marked_file(2) end)
+vim.keymap.set("n", "<leader>ti", function() open_marked_file(3) end)
+vim.keymap.set("t", "<leader>tI", function() open_marked_file(3) end)
+vim.keymap.set("n", "<leader>to", function() open_marked_file(4) end)
+vim.keymap.set("t", "<leader>tO", function() open_marked_file(4) end)
+
+vim.keymap.set("n", "<leader>tm", function() open_terminal(1) end)
+vim.keymap.set("n", "<leader>td", function() open_terminal(2) end)
+vim.keymap.set("n", "<leader>th", function() open_terminal(3) end)
+vim.keymap.set("n", "<leader>tb", function() open_terminal(4) end)
 
 local argv = vim.fn.argv()
 if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
     open_marked_file(1)
-    vim.cmd("bd1") 
 end
 
 vim.api.nvim_create_autocmd({ "TermOpen", "BufEnter" }, {
