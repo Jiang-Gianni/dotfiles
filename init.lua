@@ -808,89 +808,117 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufEnter" }, {
 })
 
 -- SQL
-local psql_current_connection = ""
-local psql_connections_file = vim.fn.expand('~/.config/nvim/psql')
+local sql_current_connection = ""
+local sql_connections_file = vim.fn.expand('~/.config/nvim/sql')
 
-local function get_psql_connections_file_bufnr()
-    local existing_bufnr = vim.fn.bufnr(psql_connections_file)
+local function get_sql_connections_file_bufnr()
+    local existing_bufnr = vim.fn.bufnr(sql_connections_file)
     if existing_bufnr ~= -1 then
         return existing_bufnr
     end
 
     local new_bufnr = vim.api.nvim_create_buf(false, false)
-    vim.api.nvim_buf_set_name(new_bufnr, psql_connections_file)
+    vim.api.nvim_buf_set_name(new_bufnr, sql_connections_file)
     vim.api.nvim_buf_call(new_bufnr, vim.cmd.edit)
 
     return new_bufnr
 end
 
 vim.keymap.set("n", "<leader>sl", function()
-    vim.api.nvim_win_set_buf(0, get_psql_connections_file_bufnr())
+    vim.api.nvim_win_set_buf(0, get_sql_connections_file_bufnr())
 end)
 
-vim.api.nvim_create_user_command("FzfPSQL", function(opts)
+vim.api.nvim_create_user_command("FzfSQL", function(opts)
  local lines = {}
- for line in io.lines(psql_connections_file) do
-     if line ~= psql_current_connection then
+ for line in io.lines(sql_connections_file) do
+     if line ~= sql_current_connection then
          table.insert(lines, line)
      end
   end
   fzf_lua.fzf_exec(lines, {
-      prompt = "PSQL", 
+      prompt = "SQL", 
       fzf_opts = {
-          ["--header"] = "Current connection: " .. psql_current_connection,
-           ["--preview"] = [[psql -d {} -c '\d']],
-      },
+          ["--header"] = "Current connection: " .. sql_current_connection,
+          ["--preview"] = [[
+          sh -c '
+          conn="$1"
+          case "$conn"
+          in postgres://*|postgresql://*)
+              psql -d "$conn" -X -q -c "\dt+"
+          ;;
+          *)
+              sqlite3 "$conn" ".schema"
+          ;;
+          esac
+          ' sh {}
+          ]]      },
       actions = {
           ["default"] = function(selected)
-              psql_current_connection = selected[1]
+              sql_current_connection = selected[1]
           end,
       },
   })
 end, { nargs = 0 })
 
-vim.keymap.set("n", "<leader>sn", ":FzfPSQL<CR>")
-
+vim.keymap.set("n", "<leader>sn", ":FzfSQL<CR>")
 
 local function run_current_paragraph()
-  local start = vim.fn.search("^$", "bnW") + 1
-  local finish = vim.fn.search("^$", "nW") - 1
+    local start = vim.fn.search("^$", "bnW") + 1
+    local finish = vim.fn.search("^$", "nW") - 1
 
-  if finish < start then
-    finish = vim.fn.line("$")
-  end
+    if finish < start then
+        finish = vim.fn.line("$")
+    end
 
-  local query = table.concat(
-    vim.api.nvim_buf_get_lines(0, start - 1, finish, false),
-    "\n"
-  )
-
-  local result = vim.fn.system(
-    {
-      "psql",
-      "-d",
-      psql_current_connection,
-      "-X",
-    },
-    query
-  )
-
-  local output = vim.split(
-    vim.trim(result),
-    "\n",
-    { plain = true }
-  )
-
-  vim.api.nvim_buf_set_lines(
-    0,
-    finish,  -- insert after paragraph
-    finish,
-    false,
-    vim.list_extend(
-      { ""},
-      output
+    local query = table.concat(
+        vim.api.nvim_buf_get_lines(0, start - 1, finish, false),
+        "\n"
     )
-  )
+
+    local result = ""
+    if string.sub(sql_current_connection,1,10)=="postgresql" then
+    -- https://www.postgresql.org/docs/current/app-psql.html
+    result = vim.fn.system(
+        {
+            "psql",
+            "-d",
+            sql_current_connection,
+            "-X",
+            "-q",
+            -- "-E",
+        },
+        "\\timing on \n"..query
+    )
+    else
+        -- https://sqlite.org/cli.html
+     result = vim.fn.system(
+            {
+                "sqlite3",
+                "-box",
+                "-cmd",
+                ".timer on",
+                sql_current_connection,
+            },
+            query
+        )
+    end
+
+    local output = vim.split(
+        vim.trim(result),
+        "\n",
+        { plain = true }
+    )
+
+    vim.api.nvim_buf_set_lines(
+        0,
+        finish,  -- insert after paragraph
+        finish,
+        false,
+        vim.list_extend(
+            { ""},
+            output
+        )
+    )
 end
 
 vim.keymap.set("n", "<leader>se", run_current_paragraph)
