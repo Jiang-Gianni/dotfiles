@@ -710,7 +710,8 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- https://github.com/niqodea/lasso.nvim/blob/main/lua/lasso/init.lua
-local marks_tracker_path = vim.fn.expand('~/.config/nvim/marks'..vim.fn.getcwd())
+local traker_hash = vim.fn.sha256(vim.fn.getcwd())
+local marks_tracker_path = vim.fn.expand('~/.config/nvim/marks/'..traker_hash)
 local marks_dir = vim.fn.fnamemodify(marks_tracker_path, ":h")
 if vim.fn.isdirectory(marks_dir) == 0 then
     vim.fn.mkdir(marks_dir, "p")
