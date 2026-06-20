@@ -185,6 +185,16 @@ vim.keymap.set("n", "<leader>no", ":only<CR>")
 
 vim.keymap.set("n", "<leader>as", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
 
+vim.keymap.set('n', '<leader>=', function()
+  local expr = vim.fn.getline('.')
+  local ok, result = pcall(vim.fn.eval, expr)
+  if ok then
+    vim.fn.setline('.', tostring(result))
+  else
+    vim.notify("Invalid expression: " .. expr, vim.log.levels.ERROR)
+  end
+end)
+
 vim.pack.add({
   "https://github.com/stevearc/oil.nvim",
   "https://github.com/ibhagwan/fzf-lua",
@@ -831,9 +841,7 @@ end)
 vim.api.nvim_create_user_command("FzfSQL", function(opts)
  local lines = {}
  for line in io.lines(sql_connections_file) do
-     if line ~= sql_current_connection then
-         table.insert(lines, line)
-     end
+     table.insert(lines, line)
   end
   fzf_lua.fzf_exec(lines, {
       prompt = "SQL", 
