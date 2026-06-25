@@ -13,6 +13,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
 vim.loader.enable()
 vim.g.mapleader = " "
 
+vim.opt.exrc = true
+vim.opt.secure = false
+
 vim.opt.compatible = false
 vim.cmd.syntax("on")
 vim.cmd.filetype("plugin indent on")
@@ -135,8 +138,8 @@ vim.opt.statusline = table.concat({
 "%#DiagnosticError#%{v:lua.first_error_location()}%*",
   "%#StatusLine#",
     "%=",
-  "%#PmenuSel#%f",
-  "%m",
+  "%#PmenuSel#",
+  "%{fnamemodify(expand('%:p'), ':.')}",
   "%#StatusLine#",
   " %{v:lua.git_branch()} ",
   "%=",
@@ -166,7 +169,7 @@ vim.keymap.set("n", "<leader>i", "<C-i>")
 vim.keymap.set("n", "<leader>o", "<C-o>")
 vim.keymap.set("n", "<leader>q", "<cmd>bd!<CR>")
 vim.keymap.set("n", "<leader>x", "vip:!sh<CR>")
-vim.keymap.set("n", "<leader>h", function() vim.fn.setreg("+", vim.fn.expand("%")) end)
+vim.keymap.set("n", "<leader>h", function() vim.fn.setreg("+", vim.fn.fnamemodify(vim.fn.expand('%:p'), ':.')) end)
 
 vim.keymap.set("n", "<leader>nw", "<C-w>k")
 vim.keymap.set("n", "<leader>nW", "<C-w>K")
@@ -203,6 +206,7 @@ vim.pack.add({
   "https://github.com/folke/tokyonight.nvim",
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/nvim-mini/mini.surround",
+  "https://github.com/stevearc/conform.nvim",
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -463,6 +467,7 @@ local format_ft = {
   typescript = true,
   dart = true,
   templ = true,
+  html = true,
 }
 
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -487,6 +492,25 @@ vim.api.nvim_create_autocmd('LspAttach', {
     end
 })
 
+require("conform").setup({
+    formatters_by_ft = {
+        proto = { "buf" },
+        json = {"jq"},
+        cucumber = { "ghokin" },
+        markdown = {"prettier"},
+        css = {"prettier"},
+        sql = {"sqruff"},
+        terraform = { "terraform_fmt" },
+        tf = { "terraform_fmt" }, 
+    },
+    format_on_save = {
+        timeout_ms = 1000,
+        lsp_format = "fallback",
+    },
+})
+
+
+
 vim.api.nvim_create_autocmd("BufWritePre", {
     group = vim.api.nvim_create_augroup("LspGolang", { clear = true }),
     pattern = "*.go",
@@ -510,7 +534,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
-vim.lsp.enable({'gopls', 'dartls', 'ts_ls', 'templ'})
+vim.lsp.enable({'gopls', 'dartls', 'ts_ls', 'templ', 'html'})
 vim.lsp.config['gopls'] = {
     name = "gopls",
     cmd = { "gopls" },
@@ -566,6 +590,11 @@ vim.lsp.config['templ'] = {
     cmd = { 'templ', 'lsp' },
     filetypes = { 'templ' },
     root_markers = { 'go.work', 'go.mod', '.git' },
+}
+vim.lsp.config['html'] = {
+    name = 'superhtml',
+    cmd = {'superhtml', 'lsp'},
+    filetypes = {'html', 'shtml', 'htm'},
 }
 
 vim.diagnostic.config({
