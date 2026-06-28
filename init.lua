@@ -313,9 +313,17 @@ fzf_lua.setup{
             cmd = "git branch --color",
             preview = "git log -n 10 --date=iso --color=always --abbrev-commit --stat {1}",
             cmd_add = {"git", "switch", "-c"},
+            cmd_del  = { "git", "branch", "-D" },
             actions = {
-                ["-"]  = { fn = actions.git_branch_del, reload = true },
+                ["_"]  = { fn = actions.git_branch_del, reload = true },
                 ["+"]  = { fn = actions.git_branch_add, field_index = "{q}", reload = true },
+                ["="] = function(selected)
+                    if not selected or #selected == 0 then
+                        return
+                    end
+                    local branch = selected[1]
+                    vim.fn.setreg("+", branch)
+                end, 
             }
         }
 
@@ -417,8 +425,23 @@ require('gitsigns').setup({
     end
 })
 
+-- for mergetool diff view local(1)-merged(2)-remote(3)
+vim.keymap.set("n", "<leader>gs", function()
+    if vim.wo.diff then
+        vim.cmd("diffget 1")
+        vim.cmd.normal({']c', bang = true})
+    end
+end)
+vim.keymap.set("n", "<leader>gt", function()
+    if vim.wo.diff then
+        vim.cmd("diffget 3")
+        vim.cmd.normal({']c', bang = true})
+    end
+end)
+
 vim.keymap.set("n", "<leader>gl", function() fzf_lua.git_commits() end)
 vim.keymap.set("n", "<leader>gg", function() fzf_lua.git_branches() end)
+vim.keymap.set("n", "<leader>gF", function() fzf_lua.git_reflog() end)
 
 vim.keymap.set("n", "<leader>gr", ":!git rebase origin/HEAD --update-refs<CR>")
 vim.keymap.set("n", "<leader>gR", ":!git restore --source=origin/HEAD %<CR>")
@@ -442,9 +465,6 @@ vim.keymap.set({'o', 'x'}, 'ih', '<Cmd>Gitsigns select_hunk<CR>')
 -- Leap
 vim.api.nvim_set_hl(0, "LeapLabel", {fg =AQUA, bold = true})
 vim.keymap.set({ 'n', 'x', 'o' }, 's', '<Plug>(leap-anywhere)')
-vim.keymap.set({'n'}, 'l', function ()
-  require('leap.remote').action()
-end)
 vim.keymap.set({'o'}, 'r', function()
   require('leap.treesitter').select {}
 end)
