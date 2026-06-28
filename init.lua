@@ -467,7 +467,6 @@ local format_ft = {
   typescript = true,
   dart = true,
   templ = true,
-  html = true,
 }
 
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -499,7 +498,6 @@ require("conform").setup({
         cucumber = { "ghokin" },
         markdown = {"prettier"},
         css = {"prettier"},
-        sql = {"sqruff"},
         terraform = { "terraform_fmt" },
         tf = { "terraform_fmt" }, 
     },
@@ -534,7 +532,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 -- https://github.com/neovim/nvim-lspconfig/tree/master/lsp
-vim.lsp.enable({'gopls', 'dartls', 'ts_ls', 'templ', 'html'})
+vim.lsp.enable({'gopls', 'dartls', 'ts_ls', 'templ'})
 vim.lsp.config['gopls'] = {
     name = "gopls",
     cmd = { "gopls" },
@@ -590,11 +588,6 @@ vim.lsp.config['templ'] = {
     cmd = { 'templ', 'lsp' },
     filetypes = { 'templ' },
     root_markers = { 'go.work', 'go.mod', '.git' },
-}
-vim.lsp.config['html'] = {
-    name = 'superhtml',
-    cmd = {'superhtml', 'lsp'},
-    filetypes = {'html', 'shtml', 'htm'},
 }
 
 vim.diagnostic.config({
@@ -746,21 +739,21 @@ if vim.fn.isdirectory(marks_dir) == 0 then
     vim.fn.mkdir(marks_dir, "p")
 end
 
-local function get_marks_tracker_bufnr()
-    local existing_marks_tracker_bufnr = vim.fn.bufnr(marks_tracker_path)
-    if existing_marks_tracker_bufnr ~= -1 then
-        return existing_marks_tracker_bufnr
+local function get_bufnr(file)
+    local existing = vim.fn.bufnr(file)
+    if existing ~= -1 then
+        return existing
     end
 
-    local new_marks_tracker_bufnr = vim.api.nvim_create_buf(false, false)
-    vim.api.nvim_buf_set_name(new_marks_tracker_bufnr, marks_tracker_path)
-    vim.api.nvim_buf_call(new_marks_tracker_bufnr, vim.cmd.edit)
+    local new_bufnr = vim.api.nvim_create_buf(false, false)
+    vim.api.nvim_buf_set_name(new_bufnr, file)
+    vim.api.nvim_buf_call(new_bufnr, vim.cmd.edit)
 
-    return new_marks_tracker_bufnr
+    return new_bufnr
 end
 
 function open_marked_file(n)
-    local marks_tracker_bufnr = get_marks_tracker_bufnr()
+    local marks_tracker_bufnr = get_bufnr(marks_tracker_path)
 
     local n_ = n - 1  -- zero-based numbering
     local lines = vim.api.nvim_buf_get_lines(marks_tracker_bufnr, n_, n_ + 1, false)
@@ -788,7 +781,7 @@ function open_terminal(n)
 end
 
 vim.keymap.set("n", "<leader>tl", function()
-    local marks_tracker_bufnr = get_marks_tracker_bufnr()
+    local marks_tracker_bufnr =  get_bufnr(marks_tracker_path)
     vim.api.nvim_win_set_buf(0, marks_tracker_bufnr)
 
 end)
@@ -798,8 +791,8 @@ vim.keymap.set("n", "<leader>tt", function()
         error('The current buffer is not associated with a regular file')
     end
 
-    local marks_tracker_bufnr = get_marks_tracker_bufnr()
-
+    local marks_tracker_bufnr = get_bufnr(marks_tracker_path)
+ 
     local buffer_name = vim.fn.expand('%')
     local file_path = vim.fn.fnamemodify(buffer_name, ':~:.')
 
@@ -831,9 +824,23 @@ vim.keymap.set("n", "<leader>to", function() open_marked_file(4) end)
 vim.keymap.set("t", "<leader>tO", function() open_marked_file(4) end)
 
 vim.keymap.set("n", "<leader>tm", function() open_terminal(1) end)
+vim.keymap.set("t", "<leader>tM", function() open_terminal(1) end)
 vim.keymap.set("n", "<leader>td", function() open_terminal(2) end)
+vim.keymap.set("t", "<leader>tD", function() open_terminal(2) end)
 vim.keymap.set("n", "<leader>th", function() open_terminal(3) end)
+vim.keymap.set("t", "<leader>tH", function() open_terminal(3) end)
 vim.keymap.set("n", "<leader>tb", function() open_terminal(4) end)
+vim.keymap.set("t", "<leader>tB", function() open_terminal(4) end)
+
+local notes_path = vim.fn.expand('~/.config/nvim/notes/'..traker_hash)
+local notes_dir = vim.fn.fnamemodify(notes_path, ":h")
+if vim.fn.isdirectory(notes_dir) == 0 then
+    vim.fn.mkdir(notes_dir, "p")
+end
+
+vim.keymap.set("n", "<leader>tu", function()
+    vim.api.nvim_win_set_buf(0, get_bufnr(notes_path))
+end)
 
 local argv = vim.fn.argv()
 if #argv == 1 and string.sub(argv[1],1,3)=="oil" then
@@ -851,21 +858,8 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufEnter" }, {
 local sql_current_connection = ""
 local sql_connections_file = vim.fn.expand('~/.config/nvim/sql')
 
-local function get_sql_connections_file_bufnr()
-    local existing_bufnr = vim.fn.bufnr(sql_connections_file)
-    if existing_bufnr ~= -1 then
-        return existing_bufnr
-    end
-
-    local new_bufnr = vim.api.nvim_create_buf(false, false)
-    vim.api.nvim_buf_set_name(new_bufnr, sql_connections_file)
-    vim.api.nvim_buf_call(new_bufnr, vim.cmd.edit)
-
-    return new_bufnr
-end
-
 vim.keymap.set("n", "<leader>sl", function()
-    vim.api.nvim_win_set_buf(0, get_sql_connections_file_bufnr())
+    vim.api.nvim_win_set_buf(0, get_bufnr(sql_connections_file))
 end)
 
 vim.api.nvim_create_user_command("FzfSQL", function(opts)
