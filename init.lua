@@ -207,6 +207,7 @@ vim.pack.add({
   "https://codeberg.org/andyg/leap.nvim",
   "https://github.com/nvim-mini/mini.surround",
   "https://github.com/stevearc/conform.nvim",
+  -- "https://github.com/MeanderingProgrammer/render-markdown.nvim",
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -215,6 +216,21 @@ vim.cmd.packadd('nvim.difftool')
 
 require("tokyonight").setup()
 vim.cmd.colorscheme("tokyonight-night")
+
+-- require('render-markdown').setup({
+--     heading = { 
+--         sign = false,
+--     },
+--     pipe_table = {
+--         cell = 'trimmed',
+--         preset = 'round',
+--     },
+-- })
+
+-- vim.api.nvim_set_hl(0, "@markup.strong", {
+--   fg = "#ffff00",
+--   bold = true,
+-- })
 
 vim.api.nvim_set_hl(0, "Folded", { fg = "#b0b0b0", bg = "NONE", bold=true })
 vim.api.nvim_set_hl(0, "StatusLine", { bg = "NONE" })
@@ -330,7 +346,7 @@ fzf_lua.setup{
     }
 }
 
-vim.keymap.set("n", "<leader>fw", function() fzf_lua.grep_cword() end)
+vim.keymap.set("n", "<leader>ft", function() fzf_lua.builtin() end)
 vim.keymap.set("n", "<leader>fr", function() fzf_lua.live_grep() end)
 vim.keymap.set("n", "<leader>fq", function() fzf_lua.quickfix_stack() end)
 vim.keymap.set("n", "<leader>ff", function() fzf_lua.files() end)
