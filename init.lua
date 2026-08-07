@@ -208,6 +208,7 @@ vim.pack.add({
   "https://github.com/nvim-mini/mini.surround",
   "https://github.com/stevearc/conform.nvim",
   -- "https://github.com/MeanderingProgrammer/render-markdown.nvim",
+  "https://github.com/vim-scripts/dbext.vim",
 })
 
 -- vim.cmd.packadd('cfilter')
@@ -396,15 +397,16 @@ local function open_github_pr()
 end
 
 local function github_permalink()
-    local file = vim.fn.expand("%")
+    local file = vim.fn.fnamemodify(vim.fn.expand('%:p'), ':.')
     local api = vim.api
 
     local line = api.nvim_win_get_cursor(0)[1]
 
   local remote =
     vim.trim(vim.fn.system("git remote get-url origin"))
-  local branch =
-    vim.trim(vim.fn.system("git branch --show-current"))
+  local branch = 'main'
+  -- local branch =
+  --   vim.trim(vim.fn.system("git branch --show-current"))
   local repo_url =
     remote
       :gsub("^git@github.com:", "https://github.com/")
@@ -532,7 +534,7 @@ require("conform").setup({
         proto = { "buf" },
         json = {"jq"},
         cucumber = { "ghokin" },
-        markdown = {"prettier"},
+        -- markdown = {"prettier"},
         css = {"prettier"},
         terraform = { "terraform_fmt" },
         tf = { "terraform_fmt" }, 
@@ -761,7 +763,7 @@ vim.api.nvim_create_autocmd("FileType", {
                 return fmt.Errorf(": %w", err)
             }]]
             vim.api.nvim_put(vim.split(snippet, "\n"), "c", true, true)
-            vim.cmd('normal! k0f"la') -- position to ..Errorf("<CURSOR>: %w, err)
+            vim.cmd('normal! k0f:<Right>i') -- position to ..Errorf("<CURSOR>: %w, err)
         end, {buffer = true})
 
     end,
